@@ -1,9 +1,60 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { apiUrl } from "./api";
 import "./App.css";
+
+function LoadingScreen({ error, onRetry }) {
+  return (
+    <main className="initial-state-screen">
+      <section className="initial-state-card">
+        {error ? (
+          <>
+            <div className="initial-state-icon error-icon">!</div>
+            <h1>Unable to load TV show data</h1>
+            <p>{error}</p>
+            <button className="retry-button" onClick={onRetry}>
+              Retry
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="loading-spinner" aria-hidden="true" />
+            <h1>Loading TV show data</h1>
+            <p>Connecting to database...</p>
+          </>
+        )}
+      </section>
+    </main>
+  );
+}
+
+async function fetchInitialData() {
+  const [recommendationsResponse, mlSuggestionsResponse] = await Promise.all([
+    fetch(apiUrl("/api/recommendations")),
+    fetch(apiUrl("/api/ml-recommendations/tmdb")),
+  ]);
+
+  if (!recommendationsResponse.ok || !mlSuggestionsResponse.ok) {
+    throw new Error("The server did not return the required TV show data.");
+  }
+
+  const [nextRecommendations, nextMlSuggestions] = await Promise.all([
+    recommendationsResponse.json(),
+    mlSuggestionsResponse.json(),
+  ]);
+
+  return {
+    nextRecommendations,
+    nextMlSuggestions,
+  };
+}
 
 function App() {
   const [recommendations, setRecommendations] = useState([]);
   const [mlSuggestions, setMlSuggestions] = useState([]);
+  const [initialLoad, setInitialLoad] = useState({
+    status: "loading",
+    error: "",
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [activeTab, setActiveTab] = useState("watched");
@@ -22,21 +73,74 @@ function App() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isUserLoginOpen, setIsUserLoginOpen] = useState(false);
-  const [isSignupOpen, setIsSignupOpen] = useState(false);
+  const [, setIsUserLoginOpen] = useState(false);
+  const [, setIsSignupOpen] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [ignoredSuggestionIds, setIgnoredSuggestionIds] = useState([]);
 
-  useEffect(() => {
-    fetch("http://localhost:5001/api/recommendations")
-      .then((response) => response.json())
-      .then((data) => setRecommendations(data))
-      .catch((error) => console.error(error));
+  const loadInitialData = useCallback(async () => {
+    setInitialLoad({
+      status: "loading",
+      error: "",
+    });
 
-    fetch("http://localhost:5001/api/ml-recommendations/tmdb")
-      .then((response) => response.json())
-      .then((data) => setMlSuggestions(data))
-      .catch((error) => console.error(error));
+    try {
+      const { nextRecommendations, nextMlSuggestions } =
+        await fetchInitialData();
+
+      setRecommendations(nextRecommendations);
+      setMlSuggestions(nextMlSuggestions);
+      setInitialLoad({
+        status: "ready",
+        error: "",
+      });
+    } catch (error) {
+      setInitialLoad({
+        status: "error",
+        error:
+          error.message ||
+          "Something went wrong while connecting to the database.",
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadAppData() {
+      try {
+        const { nextRecommendations, nextMlSuggestions } =
+          await fetchInitialData();
+
+        if (!isCurrent) {
+          return;
+        }
+
+        setRecommendations(nextRecommendations);
+        setMlSuggestions(nextMlSuggestions);
+        setInitialLoad({
+          status: "ready",
+          error: "",
+        });
+      } catch (error) {
+        if (!isCurrent) {
+          return;
+        }
+
+        setInitialLoad({
+          status: "error",
+          error:
+            error.message ||
+            "Something went wrong while connecting to the database.",
+        });
+      }
+    }
+
+    loadAppData();
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const watchedShows = recommendations
@@ -147,7 +251,7 @@ function App() {
     }
 
     await fetch(
-      `http://localhost:5001/api/recommendations/${selectedShow._id}/watch`,
+      apiUrl(`/api/recommendations/${selectedShow._id}/watch`),
       {
         method: "POST",
         headers: {
@@ -167,16 +271,14 @@ function App() {
   };
 
   const refreshRecommendations = async () => {
-    const response = await fetch("http://localhost:5001/api/recommendations");
+    const response = await fetch(apiUrl("/api/recommendations"));
     const updatedRecommendations = await response.json();
 
     setRecommendations(updatedRecommendations);
   };
 
   const refreshMLSuggestions = async () => {
-    const response = await fetch(
-      "http://localhost:5001/api/ml-recommendations/tmdb",
-    );
+    const response = await fetch(apiUrl("/api/ml-recommendations/tmdb"));
 
     const data = await response.json();
 
@@ -185,7 +287,7 @@ function App() {
 
   const ignoreSuggestion = async (tmdbId, title) => {
     try {
-      await fetch("http://localhost:5001/api/ignored-suggestions", {
+      await fetch(apiUrl("/api/ignored-suggestions"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -207,7 +309,7 @@ function App() {
   };
 
   const moveToWantToWatch = async (showId) => {
-    await fetch(`http://localhost:5001/api/recommendations/${showId}/unwatch`, {
+    await fetch(apiUrl(`/api/recommendations/${showId}/unwatch`), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${adminToken}`,
@@ -219,7 +321,7 @@ function App() {
   };
 
   const deleteTVShow = async (showId) => {
-    await fetch(`http://localhost:5001/api/recommendations/${showId}`, {
+    await fetch(apiUrl(`/api/recommendations/${showId}`), {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${adminToken}`,
@@ -237,9 +339,7 @@ function App() {
     }
 
     const response = await fetch(
-      `http://localhost:5001/api/tmdb/search?title=${encodeURIComponent(
-        newShowTitle,
-      )}`,
+      apiUrl(`/api/tmdb/search?title=${encodeURIComponent(newShowTitle)}`),
     );
 
     const results = await response.json();
@@ -250,7 +350,7 @@ function App() {
   const importTVShow = async (tmdbId) => {
     setIsImporting(true);
 
-    await fetch("http://localhost:5001/api/tmdb/import", {
+    await fetch(apiUrl("/api/tmdb/import"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -285,7 +385,7 @@ function App() {
   };
 
   const loginAdmin = async () => {
-    const response = await fetch("http://localhost:5001/api/auth/login", {
+    const response = await fetch(apiUrl("/api/auth/login"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -337,6 +437,15 @@ function App() {
       )}
     </div>
   );
+
+  if (initialLoad.status !== "ready") {
+    return (
+      <LoadingScreen
+        error={initialLoad.status === "error" ? initialLoad.error : ""}
+        onRetry={loadInitialData}
+      />
+    );
+  }
 
   return (
     <div className="app">
@@ -634,7 +743,9 @@ function App() {
                   <div className="details-actions">
                     <button
                       className="watch-button"
-                      onClick={() => importTVShow(detailsShow.tmdbId)}
+                      onClick={() =>
+                        requireAdmin(() => importTVShow(detailsShow.tmdbId))
+                      }
                     >
                       Add to Want to Watch
                     </button>
@@ -642,7 +753,12 @@ function App() {
                     <button
                       className="danger-button"
                       onClick={() =>
-                        ignoreSuggestion(detailsShow.tmdbId, detailsShow.title)
+                        requireAdmin(() =>
+                          ignoreSuggestion(
+                            detailsShow.tmdbId,
+                            detailsShow.title,
+                          ),
+                        )
                       }
                     >
                       Not Interested
