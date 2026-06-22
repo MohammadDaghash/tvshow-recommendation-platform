@@ -1,195 +1,175 @@
-# Full-Stack TV Show Recommendation Platform using Machine Learning
+# TV Show Recommendation Platform
 
-A full-stack TV show recommendation platform built with React, Node.js, Express, MongoDB, and machine-learning-based recommendation logic.
+Content-based TV show recommendation system using rating-weighted genre vectors, TMDB enrichment, and transparent similarity scoring.
 
-The project started as a TV show management app and evolved into a personalized recommendation system that uses watched shows, user ratings, genre vectors, cosine similarity, TMDB metadata, hybrid scoring, and user feedback to recommend shows more intelligently.
+This full-stack platform manages watched and want-to-watch TV shows, imports metadata from TMDB, protects admin actions, and generates explainable recommendations based on watched-show ratings and content similarity.
 
----
+## What It Does
+
+- Lets visitors browse watched and want-to-watch TV shows.
+- Lets admins import shows from TMDB, mark shows as watched, rate shows, move shows back to want-to-watch, and delete records.
+- Builds a rating-weighted user taste profile from watched shows.
+- Scores candidate shows with genre/category vectors, cosine similarity, TMDB rating, popularity, and year signals.
+- Explains recommendations with score breakdowns and similar watched shows.
+- Persists "Not Interested" feedback so ignored suggestions do not return.
+
+## Key Features
+
+- React + Vite frontend
+- Responsive carousel-style show browsing
+- Search and genre filtering
+- Detailed show modal with poster, overview, metadata, score breakdown, and recommendation reason
+- Node.js/Express API
+- MongoDB/Mongoose data model
+- JWT authentication and admin-only protected actions
+- TMDB search/import workflow
+- Dynamic TMDB recommendation endpoint
+- Persistent ignored-suggestion collection
+- Python ML experiments for content-based recommendation logic
 
 ## Tech Stack
 
-### Frontend
+- React + Vite
+- JavaScript
+- Node.js
+- Express
+- MongoDB
+- Mongoose
+- JWT / bcrypt
+- TMDB API
+- Python
+- Pandas
+- scikit-learn
+- Vercel configuration
 
-- React
-- Vite
-- CSS
-- Responsive carousel-based UI
+## Architecture / How It Works
+
+```text
+React client
+    |
+    v
+Express API
+    |
+    +--> MongoDB TVShow / User / IgnoredSuggestion collections
+    |
+    +--> TMDB API metadata search/import
+    |
+    v
+Recommendation service
+    |
+    v
+Rating-weighted category vectors + cosine similarity + metadata scoring
+```
+
+Important areas:
+
+- `cinema-ws/server.js` starts the Express API and connects backend routes.
+- `cinema-ws/models/TVShow.js` stores show metadata, watched status, user rating, and recommendation score.
+- `cinema-ws/models/User.js` stores authenticated users and roles.
+- `cinema-ws/services/recommendation.service.js` builds preference vectors, calculates similarity, combines metadata signals, and returns ranked shows.
+- `cinema-ws/controllers/mlRecommendation.controller.js` generates TMDB-based suggestions and filters existing/ignored shows.
+- `cinema-ws/services/tmdb.service.js` searches and imports TMDB metadata.
+- `client-react/src/App.jsx` renders library tabs, admin flows, modals, score breakdowns, and ignored-suggestion actions.
+- `cinema-ws/ml/` contains Python experiments for feature matrices and content-based recommendation scoring.
+
+## Recommendation Logic
+
+The system maps each show into weighted content categories:
+
+- Comedy
+- Drama & Romance
+- Crime & Thriller
+- Fantasy & Sci-Fi
+- Animation
+
+Watched shows are weighted by user rating to create a taste vector:
+
+```text
+u_j = sum(r_i * x_ij) / sum(r_i)
+```
+
+Candidate shows are scored using:
+
+- Genre/category similarity
+- Category preference
+- TMDB rating
+- Popularity
+- Year similarity
+- Similar watched shows for explanation
+
+## Screenshots
+
+Screenshots are not committed yet. Recommended captures:
+
+- Watched shows carousel
+- Want-to-watch recommendations
+- AI Suggestions section
+- Details modal with score breakdown
+- Admin TMDB import flow
+
+## Setup
 
 ### Backend
 
-- Node.js
-- Express.js
-- MongoDB
-- Mongoose
-- JWT authentication
-- Role-based authorization
-
-### External API
-
-- TMDB API for TV show metadata:
-  - title
-  - poster
-  - genres
-  - release year
-  - overview
-  - TMDB rating
-  - popularity
-
----
-
-## Features
-
-### TV Show Library
-
-- View watched TV shows
-- View want-to-watch TV shows
-- Search TV shows
-- Filter by genre
-- Browse shows using horizontal carousels
-- Open detailed show modal by clicking a card
-
-### Admin Features
-
-- Admin login
-- Add TV shows from TMDB
-- Search TMDB and select the correct show
-- Mark shows as watched
-- Rate watched shows from 0–10
-- Move shows back to want-to-watch
-- Delete shows
-- Admin-only protected actions using JWT and role-based authorization
-
-### Public Showcase Mode
-
-- Visitors can view watched and want-to-watch lists
-- Visitors can view match scores and recommendation explanations
-- Visitors cannot modify the database
-- Admin login modal appears for protected actions
-
----
-
-## Recommendation System
-
-The platform uses a hybrid content-based recommendation system.
-
-Each TV show is represented as a numerical genre/category vector.  
-The system builds a user taste profile from watched shows, weighted by the user’s ratings.
-
-Example:
-
-```txt
-Breaking Bad rating: 10 → strong Crime/Drama signal
-Friends rating: 6 → weaker Comedy/Romance signal
+```bash
+cd cinema-ws
+npm install
+npm run dev
 ```
 
-````
+Required environment variables:
 
-The system then compares the user taste vector with candidate TV show vectors using cosine similarity.
-
-Main ML concepts used:
-
-- Genre vectorization
-- Rating-weighted user taste vectors
-- Cosine similarity
-- Feature engineering
-- Hybrid recommendation scoring
-- TMDB metadata ranking
-- Explainable recommendations
-- Persistent negative feedback
-
----
-
-## AI Suggestions
-
-The Want to Watch page includes an AI Suggestions section.
-
-AI Suggestions are generated dynamically from TMDB and filtered to exclude:
-
-- already watched shows
-- shows already in want-to-watch
-- shows marked as Not Interested
-
-Each suggestion includes:
-
-- match score
-- taste similarity
-- category preference
-- TMDB rating score
-- popularity score
-- year match score
-- explanation based on similar watched shows
-
-Users can:
-
-- add a suggestion to Want to Watch
-- mark a suggestion as Not Interested
-
-Ignored suggestions are stored permanently in MongoDB, so they do not return after refreshing the page.
-
----
-
-## Machine Learning / Math Concepts
-
-The project currently uses the following recommendation formulas:
-
-### Weighted User Taste Vector
-
-```txt
-u_j = Σ(r_i × x_ij) / Σr_i
+```bash
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_jwt_secret
+TMDB_API_KEY=your_tmdb_api_key
 ```
 
-Where:
+### Frontend
 
-- `u_j` = user preference for category `j`
-- `r_i` = user rating for watched show `i`
-- `x_ij` = value of category `j` in show `i`
-
-### Genre Rating Weight
-
-```txt
-G_g = Σ r_i
+```bash
+cd client-react
+npm install
+npm run dev
 ```
 
-For all watched shows that contain genre `g`.
+Optional frontend environment variable:
 
-### Cosine Similarity
-
-```txt
-similarity(s, w) = (s · w) / (||s|| ||w||)
+```bash
+VITE_API_BASE_URL=http://localhost:5001
 ```
 
-Used to compare a suggested show vector with watched show vectors.
+## API Areas
 
-### Vector Magnitude
+```text
+GET  /api/recommendations
+POST /api/recommendations/:id/watch
+POST /api/recommendations/:id/unwatch
+DELETE /api/recommendations/:id
 
-```txt
-||s|| = sqrt(s_1² + s_2² + ... + s_n²)
+GET  /api/tmdb/search
+POST /api/tmdb/import
+
+POST /api/auth/register
+POST /api/auth/login
+
+GET  /api/ml-recommendations/tmdb
+POST /api/ignored-suggestions
 ```
 
----
+## What This Demonstrates
 
-## Project Status
+- Content-based recommendation system design
+- Rating-weighted genre/category vectors
+- Cosine similarity and hybrid metadata scoring
+- Explainable recommendation breakdowns
+- MongoDB-backed admin-curated dataset workflows
+- Authenticated full-stack product architecture
+- External API enrichment with TMDB
 
-The project currently supports:
+## Roadmap
 
-- full-stack TV show management
-- TMDB integration
-- admin authentication
-- public showcase mode
-- dynamic AI recommendations
-- persistent “Not Interested” feedback
-- cosine-similarity-based recommendation logic
-
-Next planned improvements:
-
-- rating-weighted recommendation refinement
-- better feature scaling
-- recommendation evaluation metrics
-- clustering similar TV shows
-- user-specific recommendation profiles
-- trained ML models
-
-```
-
-```
-````
+- More formal recommendation evaluation metrics
+- Better feature scaling in the production JavaScript recommender
+- User-specific recommendation profiles
+- Clustering experiments for similar shows
