@@ -422,19 +422,24 @@ function App() {
       key={show._id}
       onClick={() => setDetailsShow(show)}
     >
-      <img src={show.imageUrl} alt={show.title} />
+      <div className="poster-frame">
+        <img src={show.imageUrl} alt={show.title} />
+        <span className={show.watched ? "card-badge rating" : "card-badge score"}>
+          {show.watched ? `${show.userRating}/10` : `${show.recommendationScore}%`}
+        </span>
+      </div>
 
-      <h3>{show.title}</h3>
+      <div className="tv-card-body">
+        <h3>{show.title}</h3>
+        <p className="genre-line">{show.genres.join(", ")}</p>
+        <p className="year-line">Year: {show.year}</p>
 
-      <p>{show.genres.join(", ")}</p>
-
-      <p>Year: {show.year}</p>
-
-      {show.watched ? (
-        <p className="rating">Your Rating: ⭐ {show.userRating}</p>
-      ) : (
-        <p className="score">Match Score: {show.recommendationScore}%</p>
-      )}
+        {show.watched ? (
+          <p className="rating">Your Rating: {show.userRating}</p>
+        ) : (
+          <p className="score">Match Score: {show.recommendationScore}%</p>
+        )}
+      </div>
     </div>
   );
 
@@ -449,88 +454,111 @@ function App() {
 
   return (
     <div className="app">
-      <h1>TV Show Recommendation Platform</h1>
+      <header className="hero-panel">
+        <div className="hero-content">
+          <p className="hero-kicker">Streaming Taste Engine</p>
+          <h1>TV Show Recommendation Platform</h1>
 
-      <div className="top-bar">
-        <div className="auth-buttons">
-          <button
-            className="secondary-button"
-            onClick={() => setIsUserLoginOpen(true)}
-          >
-            Login
-          </button>
-
-          <button
-            className="secondary-button"
-            onClick={() => setIsSignupOpen(true)}
-          >
-            Sign Up
-          </button>
+          <div className="hero-stats" aria-label="TV show library stats">
+            <span>
+              <strong>{watchedShows.length}</strong>
+              Watched
+            </span>
+            <span>
+              <strong>{unwatchedShows.length}</strong>
+              Watchlist
+            </span>
+            <span>
+              <strong>{mlSuggestions.length}</strong>
+              AI Picks
+            </span>
+          </div>
         </div>
 
-        <div className="admin-bar">
-          {isAdmin ? (
-            <button className="secondary-button" onClick={logoutAdmin}>
-              Admin Logout
-            </button>
-          ) : (
+        <div className="top-bar">
+          <div className="auth-buttons">
             <button
               className="secondary-button"
-              onClick={() => setIsLoginModalOpen(true)}
+              onClick={() => setIsUserLoginOpen(true)}
             >
-              Admin Login
+              Login
             </button>
-          )}
+
+            <button
+              className="secondary-button"
+              onClick={() => setIsSignupOpen(true)}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          <div className="admin-bar">
+            {isAdmin ? (
+              <button className="secondary-button" onClick={logoutAdmin}>
+                Admin Logout
+              </button>
+            ) : (
+              <button
+                className="secondary-button"
+                onClick={() => setIsLoginModalOpen(true)}
+              >
+                Admin Login
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="tabs">
-        <button
-          className={activeTab === "watched" ? "tab active-tab" : "tab"}
-          onClick={() => handleTabChange("watched")}
-        >
-          Watched
-        </button>
+      <main className="content-shell">
+        <div className="control-panel">
+          <div className="tabs">
+            <button
+              className={activeTab === "watched" ? "tab active-tab" : "tab"}
+              onClick={() => handleTabChange("watched")}
+            >
+              Watched
+            </button>
 
-        <button
-          className={activeTab === "unwatched" ? "tab active-tab" : "tab"}
-          onClick={() => handleTabChange("unwatched")}
-        >
-          Want to Watch
-        </button>
+            <button
+              className={activeTab === "unwatched" ? "tab active-tab" : "tab"}
+              onClick={() => handleTabChange("unwatched")}
+            >
+              Want to Watch
+            </button>
 
-        <button
-          className="add-show-button"
-          onClick={() => requireAdmin(() => setIsAddModalOpen(true))}
-        >
-          + Add TV Show
-        </button>
-      </div>
+            <button
+              className="add-show-button"
+              onClick={() => requireAdmin(() => setIsAddModalOpen(true))}
+            >
+              + Add TV Show
+            </button>
+          </div>
 
-      <div className="filters">
-        <input
-          type="text"
-          placeholder="Search TV shows..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
+          <div className="filters">
+            <input
+              type="text"
+              placeholder="Search TV shows..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
 
-        <select
-          value={selectedGenre}
-          onChange={(e) => setSelectedGenre(e.target.value)}
-          className="genre-select"
-        >
-          {allGenres.map((genre) => (
-            <option value={genre} key={genre}>
-              {genre}
-            </option>
-          ))}
-        </select>
-      </div>
+            <select
+              value={selectedGenre}
+              onChange={(e) => setSelectedGenre(e.target.value)}
+              className="genre-select"
+            >
+              {allGenres.map((genre) => (
+                <option value={genre} key={genre}>
+                  {genre}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
       {isFiltering ? (
-        <section>
+        <section className="show-section">
           <h2 className="section-title">Filtered Results</h2>
           <div className="carousel-row">{filteredShows.map(renderCard)}</div>
         </section>
@@ -538,7 +566,7 @@ function App() {
         <>
           {activeTab === "unwatched" && (
             <>
-              <section>
+              <section className="show-section spotlight-section">
                 <h2 className="section-title">AI Suggestions</h2>
 
                 <div className="carousel-row">
@@ -548,25 +576,32 @@ function App() {
                     )
                     .map((show) => (
                       <div
-                        className="tv-card"
+                        className="tv-card ai-card"
                         key={show.title}
                         onClick={() => setDetailsShow(show)}
                       >
-                        <img src={show.imageUrl} alt={show.title} />
+                        <div className="poster-frame">
+                          <img src={show.imageUrl} alt={show.title} />
+                          <span className="card-badge score">
+                            {show.matchScore}%
+                          </span>
+                        </div>
 
-                        <h3>{show.title}</h3>
+                        <div className="tv-card-body">
+                          <h3>{show.title}</h3>
 
-                        <p>{show.genres.join(", ")}</p>
+                          <p className="genre-line">{show.genres.join(", ")}</p>
 
-                        <p>Year: {show.year}</p>
+                          <p className="year-line">Year: {show.year}</p>
 
-                        <p className="score">Match Score: {show.matchScore}%</p>
+                          <p className="score">Match Score: {show.matchScore}%</p>
+                        </div>
                       </div>
                     ))}
                 </div>
               </section>
 
-              <section>
+              <section className="show-section">
                 <h2 className="section-title">Want to Watch</h2>
 
                 <div className="carousel-row">
@@ -577,13 +612,14 @@ function App() {
           )}
 
           {showsByCategory.map((group) => (
-            <section key={group.category}>
+            <section className="show-section" key={group.category}>
               <h2 className="section-title">{group.category}</h2>
               <div className="carousel-row">{group.shows.map(renderCard)}</div>
             </section>
           ))}
         </>
       )}
+      </main>
 
       {selectedShow && (
         <div className="modal-overlay">
