@@ -45,17 +45,19 @@ test("groupShowsByCategory creates clear genre sections", () => {
     show("Mindhunter", ["Crime"]),
     show("The Witcher", ["Fantasy"]),
     show("Foundation", ["Sci-Fi & Fantasy"]),
+    show("Ace Attorney", ["Legal"]),
+    show("The Crown", ["History"]),
   ]);
 
   assert.deepEqual(
     groupedShows.map((group) => group.category),
     [
-      "Science-Fiction",
-      "Fantasy",
-      "Thriller",
-      "Crime",
-      "Drama & Romance",
       "Comedy",
+      "Drama & Romance",
+      "Mystery & Thriller",
+      "Science-Fiction & Fantasy",
+      "Legal",
+      "History",
     ],
   );
 });
@@ -82,8 +84,18 @@ test("getNormalizedDisplayGenres canonicalizes, removes Family, and deduplicates
       "Sci-Fi",
       "Sci-Fi & Fantasy",
       "Science-Fiction",
+      "Fantasy",
+      "Supernatural",
+      "Sports",
+      "Crime",
+      "Mystery",
+      "Thriller",
     ]),
-    ["Action & Adventure", "Science-Fiction"],
+    [
+      "Action & Adventure",
+      "Science-Fiction & Fantasy",
+      "Mystery & Thriller",
+    ],
   );
 });
 
@@ -99,9 +111,12 @@ test("getDisplayGenre applies special comedy and romance rules before priority",
 test("getDisplayGenre uses deterministic priority for rare genres", () => {
   assert.equal(
     getDisplayGenre(["Comedy", "Drama", "Sci-Fi & Fantasy"]),
-    "Science-Fiction",
+    "Science-Fiction & Fantasy",
   );
-  assert.equal(getDisplayGenre(["Drama", "Crime", "Legal"]), "Crime");
+  assert.equal(
+    getDisplayGenre(["Drama", "Crime", "Legal"]),
+    "Mystery & Thriller",
+  );
   assert.equal(getDisplayGenre(["Family"]), "Other");
 });
 
@@ -116,6 +131,34 @@ test("getFilterGenres returns canonical genres without Family or redundant sourc
     "All",
     "Drama & Romance",
     "Action & Adventure",
-    "Science-Fiction",
+    "Science-Fiction & Fantasy",
+  ]);
+});
+
+test("getFilterGenres returns only the canonical taxonomy in friendly order", () => {
+  const filterGenres = getFilterGenres([
+    show("Comedy", ["Comedy"]),
+    show("Drama", ["Drama"]),
+    show("Action", ["Action"]),
+    show("Crime", ["Crime"]),
+    show("Space", ["Science-Fiction"]),
+    show("Anime", ["Anime"]),
+    show("Horror", ["Horror"]),
+    show("Legal", ["Legal"]),
+    show("History", ["History"]),
+    show("Unknown", ["Family", "Sports"]),
+  ]);
+
+  assert.deepEqual(filterGenres, [
+    "All",
+    "Comedy",
+    "Drama & Romance",
+    "Action & Adventure",
+    "Mystery & Thriller",
+    "Science-Fiction & Fantasy",
+    "Anime",
+    "Horror",
+    "Legal",
+    "History",
   ]);
 });

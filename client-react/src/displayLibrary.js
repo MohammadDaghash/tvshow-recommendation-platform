@@ -14,31 +14,21 @@ export const CANONICAL_DISPLAY_GENRES = [
   "Comedy",
   "Drama & Romance",
   "Action & Adventure",
-  "Crime",
-  "Thriller",
-  "Mystery",
-  "Science-Fiction",
-  "Fantasy",
-  "Supernatural",
-  "Horror",
+  "Mystery & Thriller",
+  "Science-Fiction & Fantasy",
   "Anime",
+  "Horror",
   "Legal",
-  "Sports",
   "History",
   "Other",
 ];
 
 const DISPLAY_GENRE_PRIORITY = [
-  "Science-Fiction",
-  "Fantasy",
-  "Supernatural",
+  "Science-Fiction & Fantasy",
+  "Mystery & Thriller",
   "Horror",
-  "Thriller",
-  "Mystery",
-  "Crime",
-  "Legal",
   "Anime",
-  "Sports",
+  "Legal",
   "History",
   "Action & Adventure",
   "Drama & Romance",
@@ -60,21 +50,21 @@ const genreAliasMap = new Map([
   ["action", "Action & Adventure"],
   ["adventure", "Action & Adventure"],
   ["action & adventure", "Action & Adventure"],
-  ["crime", "Crime"],
-  ["thriller", "Thriller"],
-  ["mystery", "Mystery"],
-  ["sci-fi", "Science-Fiction"],
-  ["sci-fi & fantasy", "Science-Fiction"],
-  ["science fiction", "Science-Fiction"],
-  ["science-fiction", "Science-Fiction"],
-  ["fantasy", "Fantasy"],
-  ["supernatural", "Supernatural"],
+  ["crime", "Mystery & Thriller"],
+  ["thriller", "Mystery & Thriller"],
+  ["mystery", "Mystery & Thriller"],
+  ["mystery & thriller", "Mystery & Thriller"],
+  ["sci-fi", "Science-Fiction & Fantasy"],
+  ["sci-fi & fantasy", "Science-Fiction & Fantasy"],
+  ["science fiction", "Science-Fiction & Fantasy"],
+  ["science-fiction", "Science-Fiction & Fantasy"],
+  ["science-fiction & fantasy", "Science-Fiction & Fantasy"],
+  ["fantasy", "Science-Fiction & Fantasy"],
+  ["supernatural", "Science-Fiction & Fantasy"],
   ["horror", "Horror"],
   ["anime", "Anime"],
   ["animation", "Anime"],
   ["legal", "Legal"],
-  ["sports", "Sports"],
-  ["sport", "Sports"],
   ["history", "History"],
 ]);
 
@@ -84,7 +74,11 @@ export const getNormalizedDisplayGenres = (genres = []) => {
   genres.forEach((genre) => {
     const lookupGenre = normalizeLookup(genre);
 
-    if (lookupGenre === "family") {
+    if (
+      lookupGenre === "family" ||
+      lookupGenre === "sports" ||
+      lookupGenre === "sport"
+    ) {
       return;
     }
 
@@ -150,7 +144,7 @@ export const groupShowsByCategory = (shows, selectedGenre = "All") => {
     groups.set(category, [...categoryShows, show]);
   });
 
-  return DISPLAY_GENRE_PRIORITY.filter((genre) => groups.has(genre)).map(
+  return CANONICAL_DISPLAY_GENRES.filter((genre) => groups.has(genre)).map(
     (category) => ({
       category,
       shows: groups.get(category),
