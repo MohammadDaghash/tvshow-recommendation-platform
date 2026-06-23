@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
+import { buildDemoLibrary } from "./demoLibrary";
 import "./App.css";
 
 const SESSION_STORAGE_KEY = "tvshowUserSession";
@@ -185,6 +186,7 @@ function App() {
   const currentUser = authSession?.user || null;
   const authToken = authSession?.token || "";
   const isAdmin = currentUser?.role === "admin";
+  const isDemoMode = !currentUser;
 
   const loadAppData = useCallback(async (token = "") => {
     setInitialLoad({
@@ -278,19 +280,30 @@ function App() {
     };
   }, [hasOpenModal]);
 
-  const userRecommendations = currentUser ? recommendations : [];
+  const demoLibrary = useMemo(
+    () => buildDemoLibrary(recommendations),
+    [recommendations],
+  );
 
-  const watchedShows = userRecommendations
-    .filter((show) => show.status === "watched")
-    .sort((a, b) => (b.userRating || 0) - (a.userRating || 0));
+  const userRecommendations = currentUser ? recommendations : null;
 
-  const wantShows = userRecommendations
-    .filter((show) => show.status === "want")
-    .sort((a, b) => b.recommendationScore - a.recommendationScore);
+  const watchedShows = currentUser
+    ? userRecommendations
+        .filter((show) => show.status === "watched")
+        .sort((a, b) => (b.userRating || 0) - (a.userRating || 0))
+    : demoLibrary.watchedShows;
 
-  const watchingShows = userRecommendations
-    .filter((show) => show.status === "watching")
-    .sort((a, b) => b.recommendationScore - a.recommendationScore);
+  const wantShows = currentUser
+    ? userRecommendations
+        .filter((show) => show.status === "want")
+        .sort((a, b) => b.recommendationScore - a.recommendationScore)
+    : demoLibrary.wantShows;
+
+  const watchingShows = currentUser
+    ? userRecommendations
+        .filter((show) => show.status === "watching")
+        .sort((a, b) => b.recommendationScore - a.recommendationScore)
+    : demoLibrary.watchingShows;
 
   const visibleAISuggestions = mlSuggestions.filter(
     (show) => !ignoredSuggestionIds.includes(show.tmdbId),
@@ -360,6 +373,13 @@ function App() {
 
     openAuthModal("login", message);
     return false;
+  };
+
+  const promptForPrivateList = () => {
+    openAuthModal(
+      "login",
+      "Sign in to copy this action into your own private watch list.",
+    );
   };
 
   const requireAdmin = (action) => {
@@ -645,6 +665,14 @@ function App() {
   };
 
   const renderShowActions = (show) => {
+    if (isDemoMode) {
+      return (
+        <button className="watch-button compact-action" onClick={promptForPrivateList}>
+          Sign in to use this
+        </button>
+      );
+    }
+
     if (show.status === "watched") {
       return (
         <>
@@ -759,24 +787,32 @@ function App() {
         <p className="score">Match Score: {show.matchScore}%</p>
 
         <div className="card-actions" onClick={(event) => event.stopPropagation()}>
-          <button
-            className="watch-button compact-action"
-            onClick={() => addSuggestionToLibrary(show, "want")}
-          >
-            Want
-          </button>
-          <button
-            className="secondary-button compact-action"
-            onClick={() => addSuggestionToLibrary(show, "watching")}
-          >
-            Start
-          </button>
-          <button
-            className="danger-button compact-action"
-            onClick={() => ignoreSuggestion(show.tmdbId, show.title)}
-          >
-            Not Interested
-          </button>
+          {isDemoMode ? (
+            <button className="watch-button compact-action" onClick={promptForPrivateList}>
+              Sign in to use this
+            </button>
+          ) : (
+            <>
+              <button
+                className="watch-button compact-action"
+                onClick={() => addSuggestionToLibrary(show, "want")}
+              >
+                Want
+              </button>
+              <button
+                className="secondary-button compact-action"
+                onClick={() => addSuggestionToLibrary(show, "watching")}
+              >
+                Start
+              </button>
+              <button
+                className="danger-button compact-action"
+                onClick={() => ignoreSuggestion(show.tmdbId, show.title)}
+              >
+                Not Interested
+              </button>
+            </>
+          )}
         </div>
       </div>
     </article>
@@ -797,6 +833,11 @@ function App() {
         <div className="hero-content">
           <p className="hero-kicker">Streaming Taste Engine</p>
           <h1>TV Show Recommendation Platform</h1>
+          {isDemoMode && (
+            <p className="demo-mode-pill">
+              Demo mode - sign in to create your own private list
+            </p>
+          )}
 
           <div className="hero-stats" aria-label="TV show library stats">
             <span>
@@ -902,19 +943,17 @@ function App() {
 
         <section className="show-section">
           <h2 className="section-title">{pageConfig[activePage].label}</h2>
-
-          {!currentUser && activePage !== "ai" ? (
-            <div className="empty-state">
-              <h3>Sign in to see your private list</h3>
-              <p>
-                Your watched, watchlist, and currently watching pages are private
-                to your account.
-              </p>
-              <button className="watch-button" onClick={() => openAuthModal("login")}>
-                Login
-              </button>
+          {isDemoMode && (
+            <div className="demo-banner">
+              <strong>Demo mode</strong>
+              <span>
+                These public cards show how the app works. Sign in to keep your
+                own watched, watchlist, and currently watching data private.
+              </span>
             </div>
-          ) : filteredShows.length === 0 ? (
+          )}
+
+          {filteredShows.length === 0 ? (
             <div className="empty-state">
               <h3>{pageConfig[activePage].emptyTitle}</h3>
               <p>{pageConfig[activePage].emptyText}</p>
@@ -1080,28 +1119,38 @@ function App() {
                   <p className="score">Match Score: {detailsShow.matchScore}%</p>
 
                   <div className="details-actions">
-                    <button
-                      className="watch-button"
-                      onClick={() => addSuggestionToLibrary(detailsShow, "want")}
-                    >
-                      Move to Want to Watch
-                    </button>
+                    {isDemoMode ? (
+                      <button className="watch-button" onClick={promptForPrivateList}>
+                        Sign in to use this
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="watch-button"
+                          onClick={() => addSuggestionToLibrary(detailsShow, "want")}
+                        >
+                          Move to Want to Watch
+                        </button>
 
-                    <button
-                      className="secondary-button"
-                      onClick={() => addSuggestionToLibrary(detailsShow, "watching")}
-                    >
-                      Start Watching
-                    </button>
+                        <button
+                          className="secondary-button"
+                          onClick={() =>
+                            addSuggestionToLibrary(detailsShow, "watching")
+                          }
+                        >
+                          Start Watching
+                        </button>
 
-                    <button
-                      className="danger-button"
-                      onClick={() =>
-                        ignoreSuggestion(detailsShow.tmdbId, detailsShow.title)
-                      }
-                    >
-                      Not Interested
-                    </button>
+                        <button
+                          className="danger-button"
+                          onClick={() =>
+                            ignoreSuggestion(detailsShow.tmdbId, detailsShow.title)
+                          }
+                        >
+                          Not Interested
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               ) : (
