@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
+import { getTopAISuggestions } from "./aiSuggestions";
 import { buildDemoLibrary } from "./demoLibrary";
 import {
   getDisplayGenreList,
@@ -120,15 +121,15 @@ async function parseJSONResponse(response) {
 }
 
 async function fetchInitialData(token) {
-  const recommendationsOptions = token
+  const authenticatedOptions = token
     ? {
         headers: authHeaders(token),
       }
     : undefined;
 
   const [recommendationsResponse, mlSuggestionsResponse] = await Promise.all([
-    fetch(apiUrl("/api/recommendations"), recommendationsOptions),
-    fetch(apiUrl("/api/ml-recommendations/tmdb")),
+    fetch(apiUrl("/api/recommendations"), authenticatedOptions),
+    fetch(apiUrl("/api/ml-recommendations/tmdb"), authenticatedOptions),
   ]);
 
   if (!recommendationsResponse.ok || !mlSuggestionsResponse.ok) {
@@ -315,8 +316,9 @@ function App() {
         .filter((show) => show.status === "watching")
         .sort((a, b) => b.recommendationScore - a.recommendationScore);
 
-  const visibleAISuggestions = mlSuggestions.filter(
-    (show) => !ignoredSuggestionIds.includes(show.tmdbId),
+  const visibleAISuggestions = useMemo(
+    () => getTopAISuggestions(mlSuggestions, ignoredSuggestionIds),
+    [ignoredSuggestionIds, mlSuggestions],
   );
 
   const pageShows = useMemo(() => {
@@ -404,7 +406,15 @@ function App() {
   };
 
   const refreshMLSuggestions = async () => {
-    const response = await fetch(apiUrl("/api/ml-recommendations/tmdb"));
+    const token = getRecommendationFetchToken(authSession);
+    const response = await fetch(
+      apiUrl("/api/ml-recommendations/tmdb"),
+      token
+        ? {
+            headers: authHeaders(token),
+          }
+        : undefined,
+    );
     const data = await parseJSONResponse(response);
 
     setMlSuggestions(data);
@@ -513,6 +523,17 @@ function App() {
     setRatingInput(show.userRating ? String(show.userRating) : "");
   };
 
+  const openSuggestionRatingModal = (show) => {
+    if (!requireUser()) return;
+
+    setDetailsShow(null);
+    setRatingTarget({
+      ...show,
+      isAISuggestion: true,
+    });
+    setRatingInput("");
+  };
+
   const submitRating = async () => {
     const rating = Number(ratingInput);
 
@@ -521,10 +542,18 @@ function App() {
       return;
     }
 
-    await updateLibraryStatus(ratingTarget, "watched", {
-      userRating: rating,
-      successMessage: "Saved to Watched with your rating.",
-    });
+    if (ratingTarget.isAISuggestion) {
+      await addSuggestionToLibrary(ratingTarget, "watched", {
+        userRating: rating,
+        successMessage: "Saved to Watched and recalculated your AI suggestions.",
+      });
+    } else {
+      await updateLibraryStatus(ratingTarget, "watched", {
+        userRating: rating,
+        successMessage: "Saved to Watched with your rating.",
+      });
+    }
+
     setRatingTarget(null);
     setRatingInput("");
   };
@@ -550,7 +579,11 @@ function App() {
     }
   };
 
-  const addSuggestionToLibrary = async (show, status) => {
+  const addSuggestionToLibrary = async (
+    show,
+    status,
+    { userRating, successMessage } = {},
+  ) => {
     if (!requireUser()) return;
 
     try {
@@ -562,6 +595,7 @@ function App() {
         body: JSON.stringify({
           tmdbId: show.tmdbId,
           status,
+          userRating,
         }),
       });
 
@@ -573,7 +607,8 @@ function App() {
       showNotice(
         "success",
         "Added to your list",
-        `${show.title} was moved to ${pageConfig[status === "want" ? "want" : status].label}.`,
+        successMessage ||
+          `${show.title} was moved to ${pageConfig[status === "want" ? "want" : status].label}.`,
       );
     } catch (error) {
       showNotice("error", "Could not add show", error.message);
@@ -597,6 +632,7 @@ function App() {
 
       await parseJSONResponse(response);
       setIgnoredSuggestionIds((previousIds) => [...previousIds, tmdbId]);
+      await refreshMLSuggestions();
       setDetailsShow(null);
       showNotice("success", "Suggestion hidden", `${title} will stay hidden.`);
     } catch (error) {
@@ -758,6 +794,81 @@ function App() {
     );
   };
 
+  const renderSuggestionActions = (show) => {
+    if (isAdmin) {
+      return (
+        <>
+          <button
+            className="watch-button compact-action"
+            disabled={isImporting}
+            onClick={() => importTVShow(show.tmdbId)}
+          >
+            {isImporting ? "Importing..." : "Add to Catalog"}
+          </button>
+          <button
+            className="secondary-button compact-action"
+            onClick={() =>
+              setDetailsShow({
+                ...show,
+                isAISuggestion: true,
+              })
+            }
+          >
+            View Details
+          </button>
+        </>
+      );
+    }
+
+    const runSuggestionAction = (action) => {
+      if (isDemoMode) {
+        promptForPrivateList();
+        return;
+      }
+
+      action();
+    };
+
+    return (
+      <>
+        <button
+          className="danger-button compact-action"
+          onClick={() =>
+            runSuggestionAction(() =>
+              ignoreSuggestion(show.tmdbId, show.title),
+            )
+          }
+        >
+          Not Interested
+        </button>
+        <button
+          className="secondary-button compact-action"
+          onClick={() =>
+            runSuggestionAction(() => addSuggestionToLibrary(show, "want"))
+          }
+        >
+          Add to Want to Watch
+        </button>
+        <button
+          className="secondary-button compact-action"
+          onClick={() =>
+            runSuggestionAction(() => addSuggestionToLibrary(show, "watching"))
+          }
+        >
+          Add to Currently Watching
+        </button>
+        <button
+          className="watch-button compact-action"
+          onClick={() =>
+            runSuggestionAction(() => openSuggestionRatingModal(show))
+          }
+        >
+          Add to Watched
+        </button>
+      </>
+    );
+  };
+
   const renderCard = (show) => (
     <article className="tv-card" key={show._id} onClick={() => setDetailsShow(show)}>
       <div className="poster-frame">
@@ -813,54 +924,11 @@ function App() {
         <p className="year-line">Year: {show.year}</p>
         <p className="score">Match Score: {show.matchScore}%</p>
 
-        <div className="card-actions" onClick={(event) => event.stopPropagation()}>
-          {isDemoMode ? (
-            <button className="watch-button compact-action" onClick={promptForPrivateList}>
-              Sign in to use this
-            </button>
-          ) : isAdmin ? (
-            <>
-              <button
-                className="watch-button compact-action"
-                disabled={isImporting}
-                onClick={() => importTVShow(show.tmdbId)}
-              >
-                {isImporting ? "Importing..." : "Add to Catalog"}
-              </button>
-              <button
-                className="secondary-button compact-action"
-                onClick={() =>
-                  setDetailsShow({
-                    ...show,
-                    isAISuggestion: true,
-                  })
-                }
-              >
-                View Details
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="watch-button compact-action"
-                onClick={() => addSuggestionToLibrary(show, "want")}
-              >
-                Want
-              </button>
-              <button
-                className="secondary-button compact-action"
-                onClick={() => addSuggestionToLibrary(show, "watching")}
-              >
-                Start
-              </button>
-              <button
-                className="danger-button compact-action"
-                onClick={() => ignoreSuggestion(show.tmdbId, show.title)}
-              >
-                Not Interested
-              </button>
-            </>
-          )}
+        <div
+          className="card-actions ai-card-actions"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {renderSuggestionActions(show)}
         </div>
       </div>
     </article>
@@ -1001,6 +1069,22 @@ function App() {
                 own watched, watchlist, and currently watching data private.
               </span>
             </div>
+          )}
+
+          {activePage === "ai" && visibleAISuggestions.length > 0 && (
+            <section className="top-ai-panel" aria-label="Top AI Suggestions">
+              <div className="genre-group-header top-ai-header">
+                <div>
+                  <p className="top-ai-kicker">Recommendation Engine</p>
+                  <h3>Top AI Suggestions</h3>
+                </div>
+                <span>{visibleAISuggestions.length} picks</span>
+              </div>
+
+              <div className="carousel-row top-ai-carousel">
+                {visibleAISuggestions.map(renderSuggestionCard)}
+              </div>
+            </section>
           )}
 
           {filteredShows.length === 0 ? (
@@ -1181,46 +1265,7 @@ function App() {
                   <p className="score">Match Score: {detailsShow.matchScore}%</p>
 
                   <div className="details-actions">
-                    {isDemoMode ? (
-                      <button className="watch-button" onClick={promptForPrivateList}>
-                        Sign in to use this
-                      </button>
-                    ) : isAdmin ? (
-                      <button
-                        className="watch-button"
-                        disabled={isImporting}
-                        onClick={() => importTVShow(detailsShow.tmdbId)}
-                      >
-                        {isImporting ? "Importing..." : "Add to Catalog"}
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          className="watch-button"
-                          onClick={() => addSuggestionToLibrary(detailsShow, "want")}
-                        >
-                          Move to Want to Watch
-                        </button>
-
-                        <button
-                          className="secondary-button"
-                          onClick={() =>
-                            addSuggestionToLibrary(detailsShow, "watching")
-                          }
-                        >
-                          Start Watching
-                        </button>
-
-                        <button
-                          className="danger-button"
-                          onClick={() =>
-                            ignoreSuggestion(detailsShow.tmdbId, detailsShow.title)
-                          }
-                        >
-                          Not Interested
-                        </button>
-                      </>
-                    )}
+                    {renderSuggestionActions(detailsShow)}
                   </div>
                 </>
               ) : (

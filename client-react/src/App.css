@@ -717,6 +717,50 @@ h1 {
   gap: 34px;
 }
 
+.top-ai-panel {
+  position: relative;
+  margin: 0 0 34px;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(120, 226, 194, 0.18);
+  border-radius: var(--cinema-radius);
+  background:
+    linear-gradient(135deg, rgba(120, 226, 194, 0.11), transparent 38%),
+    linear-gradient(225deg, rgba(234, 211, 138, 0.08), transparent 42%),
+    rgba(9, 12, 20, 0.66);
+  box-shadow: var(--cinema-shadow-soft);
+  backdrop-filter: blur(16px);
+}
+
+.top-ai-panel::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  content: "";
+  opacity: 0.42;
+}
+
+.top-ai-header {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.top-ai-kicker {
+  margin: 0 0 5px;
+  color: var(--cinema-gold);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.top-ai-carousel {
+  position: relative;
+  padding-top: 2px;
+}
+
 .genre-group {
   min-width: 0;
 }
@@ -766,6 +810,17 @@ h1 {
   min-height: 36px;
   padding: 7px 11px;
   font-size: 12px;
+}
+
+.ai-card-actions {
+  align-items: stretch;
+}
+
+.ai-card-actions .compact-action {
+  flex: 1 1 100%;
+  justify-content: center;
+  line-height: 1.18;
+  white-space: normal;
 }
 
 .empty-state {
@@ -1238,6 +1293,11 @@ h1 {
 
   .grouped-show-sections {
     gap: 28px;
+  }
+
+  .top-ai-panel {
+    margin-bottom: 28px;
+    padding: 14px;
   }
 
   .genre-group-header {
