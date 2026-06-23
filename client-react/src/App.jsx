@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
 import { buildDemoLibrary } from "./demoLibrary";
 import {
+  getDisplayGenreList,
+  getFilterGenres,
+  getNormalizedDisplayGenres,
   getRecommendationFetchToken,
   groupShowsByCategory,
   shouldUsePublicDataset,
@@ -323,15 +326,7 @@ function App() {
     return visibleAISuggestions;
   }, [activePage, visibleAISuggestions, wantShows, watchedShows, watchingShows]);
 
-  const allGenres = [
-    "All",
-    ...new Set(
-      pageShows
-        .flatMap((show) => show.genres || [])
-        .filter(Boolean)
-        .sort(),
-    ),
-  ];
+  const allGenres = getFilterGenres(pageShows);
 
   const filteredShows = pageShows.filter((show) => {
     const matchesSearch = show.title
@@ -339,7 +334,8 @@ function App() {
       .includes(searchTerm.toLowerCase());
 
     const matchesGenre =
-      selectedGenre === "All" || show.genres?.includes(selectedGenre);
+      selectedGenre === "All" ||
+      getNormalizedDisplayGenres(show.genres).includes(selectedGenre);
 
     return matchesSearch && matchesGenre;
   });
@@ -680,6 +676,10 @@ function App() {
     setShowToDelete(show);
   };
 
+  const formatDisplayGenres = (genres) => {
+    return getDisplayGenreList(genres).join(", ");
+  };
+
   const renderShowActions = (show) => {
     if (isDemoMode) {
       return (
@@ -773,7 +773,7 @@ function App() {
 
       <div className="tv-card-body">
         <h3>{show.title}</h3>
-        <p className="genre-line">{show.genres.join(", ")}</p>
+        <p className="genre-line">{formatDisplayGenres(show.genres)}</p>
         <p className="year-line">Year: {show.year}</p>
 
         {show.status === "watched" ? (
@@ -809,7 +809,7 @@ function App() {
 
       <div className="tv-card-body">
         <h3>{show.title}</h3>
-        <p className="genre-line">{show.genres.join(", ")}</p>
+        <p className="genre-line">{formatDisplayGenres(show.genres)}</p>
         <p className="year-line">Year: {show.year}</p>
         <p className="score">Match Score: {show.matchScore}%</p>
 
@@ -1171,7 +1171,7 @@ function App() {
 
             <div className="details-content">
               <h2>{detailsShow.title}</h2>
-              <p>{detailsShow.genres.join(", ")}</p>
+              <p>{formatDisplayGenres(detailsShow.genres)}</p>
               <p>Year: {detailsShow.year}</p>
 
               {detailsShow.overview && <p>{detailsShow.overview}</p>}

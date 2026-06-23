@@ -10,77 +10,167 @@ export const getRecommendationFetchToken = (session) => {
   return session.token;
 };
 
-const categoryDefinitions = [
-  {
-    category: "Comedy",
-    aliases: ["Comedy"],
-  },
-  {
-    category: "Drama",
-    aliases: ["Drama"],
-  },
-  {
-    category: "Thriller",
-    aliases: ["Thriller", "Mystery", "Horror"],
-  },
-  {
-    category: "Romance",
-    aliases: ["Romance"],
-  },
-  {
-    category: "Crime",
-    aliases: ["Crime", "Legal"],
-  },
-  {
-    category: "Fantasy",
-    aliases: ["Fantasy"],
-  },
-  {
-    category: "Sci-Fi",
-    aliases: [
-      "Sci-Fi",
-      "Science Fiction",
-      "Science-Fiction",
-      "Sci-Fi & Fantasy",
-    ],
-  },
-  {
-    category: "Action & Adventure",
-    aliases: ["Action", "Adventure", "Action & Adventure"],
-  },
-  {
-    category: "Family & Animation",
-    aliases: ["Animation", "Anime", "Family"],
-  },
+export const CANONICAL_DISPLAY_GENRES = [
+  "Comedy",
+  "Drama & Romance",
+  "Action & Adventure",
+  "Crime",
+  "Thriller",
+  "Mystery",
+  "Science-Fiction",
+  "Fantasy",
+  "Supernatural",
+  "Horror",
+  "Anime",
+  "Legal",
+  "Sports",
+  "History",
+  "Other",
 ];
 
-const normalizeGenre = (genre) => genre.toLowerCase();
+const DISPLAY_GENRE_PRIORITY = [
+  "Science-Fiction",
+  "Fantasy",
+  "Supernatural",
+  "Horror",
+  "Thriller",
+  "Mystery",
+  "Crime",
+  "Legal",
+  "Anime",
+  "Sports",
+  "History",
+  "Action & Adventure",
+  "Drama & Romance",
+  "Comedy",
+  "Other",
+];
 
-export const getPrimaryCategory = (show, selectedGenre = "All") => {
-  if (selectedGenre !== "All") {
-    return selectedGenre;
-  }
+const normalizeLookup = (genre) => {
+  return String(genre || "")
+    .trim()
+    .toLowerCase();
+};
 
-  const normalizedGenres = new Set((show.genres || []).map(normalizeGenre));
-  const matchingCategory = categoryDefinitions.find(({ aliases }) => {
-    return aliases.some((alias) => normalizedGenres.has(normalizeGenre(alias)));
+const genreAliasMap = new Map([
+  ["comedy", "Comedy"],
+  ["drama", "Drama & Romance"],
+  ["romance", "Drama & Romance"],
+  ["drama & romance", "Drama & Romance"],
+  ["action", "Action & Adventure"],
+  ["adventure", "Action & Adventure"],
+  ["action & adventure", "Action & Adventure"],
+  ["crime", "Crime"],
+  ["thriller", "Thriller"],
+  ["mystery", "Mystery"],
+  ["sci-fi", "Science-Fiction"],
+  ["sci-fi & fantasy", "Science-Fiction"],
+  ["science fiction", "Science-Fiction"],
+  ["science-fiction", "Science-Fiction"],
+  ["fantasy", "Fantasy"],
+  ["supernatural", "Supernatural"],
+  ["horror", "Horror"],
+  ["anime", "Anime"],
+  ["animation", "Anime"],
+  ["legal", "Legal"],
+  ["sports", "Sports"],
+  ["sport", "Sports"],
+  ["history", "History"],
+]);
+
+export const getNormalizedDisplayGenres = (genres = []) => {
+  const normalizedGenres = [];
+
+  genres.forEach((genre) => {
+    const lookupGenre = normalizeLookup(genre);
+
+    if (lookupGenre === "family") {
+      return;
+    }
+
+    const canonicalGenre = genreAliasMap.get(lookupGenre);
+
+    if (canonicalGenre && !normalizedGenres.includes(canonicalGenre)) {
+      normalizedGenres.push(canonicalGenre);
+    }
   });
 
-  return matchingCategory?.category || "Other";
+  return normalizedGenres;
+};
+
+const hasSourceGenre = (genres, expectedGenre) => {
+  const expectedLookup = normalizeLookup(expectedGenre);
+
+  return genres.some((genre) => normalizeLookup(genre) === expectedLookup);
+};
+
+export const getDisplayGenre = (genres = []) => {
+  const normalizedGenres = getNormalizedDisplayGenres(genres);
+
+  if (normalizedGenres.length === 0) {
+    return "Other";
+  }
+
+  const hasComedy = normalizedGenres.includes("Comedy");
+  const hasDrama = hasSourceGenre(genres, "Drama");
+  const hasRomance = hasSourceGenre(genres, "Romance");
+
+  if (
+    hasComedy &&
+    hasDrama &&
+    hasRomance &&
+    normalizedGenres.length === 2
+  ) {
+    return "Drama & Romance";
+  }
+
+  if (
+    hasComedy &&
+    (hasDrama || hasRomance) &&
+    !(hasDrama && hasRomance) &&
+    normalizedGenres.length === 2
+  ) {
+    return "Comedy";
+  }
+
+  return (
+    DISPLAY_GENRE_PRIORITY.find((genre) => normalizedGenres.includes(genre)) ||
+    "Other"
+  );
 };
 
 export const groupShowsByCategory = (shows, selectedGenre = "All") => {
   const groups = new Map();
 
   shows.forEach((show) => {
-    const category = getPrimaryCategory(show, selectedGenre);
+    const category =
+      selectedGenre === "All" ? getDisplayGenre(show.genres) : selectedGenre;
     const categoryShows = groups.get(category) || [];
 
     groups.set(category, [...categoryShows, show]);
   });
 
-  return Array.from(groups, ([category, categoryShows]) => ({
-    category,
-    shows: categoryShows,
-  }));
+  return DISPLAY_GENRE_PRIORITY.filter((genre) => groups.has(genre)).map(
+    (category) => ({
+      category,
+      shows: groups.get(category),
+    }),
+  );
+};
+
+export const getFilterGenres = (shows) => {
+  const visibleGenres = new Set(
+    shows.flatMap((show) => getNormalizedDisplayGenres(show.genres)),
+  );
+
+  return [
+    "All",
+    ...CANONICAL_DISPLAY_GENRES.filter((genre) => visibleGenres.has(genre)),
+  ];
+};
+
+export const getDisplayGenreList = (genres = []) => {
+  const normalizedGenres = getNormalizedDisplayGenres(genres);
+
+  return normalizedGenres.length > 0 ? normalizedGenres : ["Other"];
 };

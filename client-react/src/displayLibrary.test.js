@@ -3,6 +3,9 @@ import test from "node:test";
 
 import {
   getRecommendationFetchToken,
+  getDisplayGenre,
+  getFilterGenres,
+  getNormalizedDisplayGenres,
   groupShowsByCategory,
   shouldUsePublicDataset,
 } from "./displayLibrary.js";
@@ -37,9 +40,8 @@ test("admin sessions use the public dataset while normal users use private data"
 test("groupShowsByCategory creates clear genre sections", () => {
   const groupedShows = groupShowsByCategory([
     show("The Office", ["Comedy"]),
-    show("This Is Us", ["Drama"]),
+    show("This Is Us", ["Drama", "Romance"]),
     show("Dark", ["Thriller"]),
-    show("Bridgerton", ["Romance"]),
     show("Mindhunter", ["Crime"]),
     show("The Witcher", ["Fantasy"]),
     show("Foundation", ["Sci-Fi & Fantasy"]),
@@ -47,18 +49,73 @@ test("groupShowsByCategory creates clear genre sections", () => {
 
   assert.deepEqual(
     groupedShows.map((group) => group.category),
-    ["Comedy", "Drama", "Thriller", "Romance", "Crime", "Fantasy", "Sci-Fi"],
+    [
+      "Science-Fiction",
+      "Fantasy",
+      "Thriller",
+      "Crime",
+      "Drama & Romance",
+      "Comedy",
+    ],
   );
 });
 
 test("groupShowsByCategory uses the active genre filter as the section heading", () => {
   const groupedShows = groupShowsByCategory(
     [show("Bridgerton", ["Drama", "Romance"])],
-    "Romance",
+    "Drama & Romance",
   );
 
   assert.deepEqual(
     groupedShows.map((group) => [group.category, group.shows[0].title]),
-    [["Romance", "Bridgerton"]],
+    [["Drama & Romance", "Bridgerton"]],
   );
+});
+
+test("getNormalizedDisplayGenres canonicalizes, removes Family, and deduplicates genres", () => {
+  assert.deepEqual(
+    getNormalizedDisplayGenres([
+      "Action",
+      "Adventure",
+      "Action & Adventure",
+      "Family",
+      "Sci-Fi",
+      "Sci-Fi & Fantasy",
+      "Science-Fiction",
+    ]),
+    ["Action & Adventure", "Science-Fiction"],
+  );
+});
+
+test("getDisplayGenre applies special comedy and romance rules before priority", () => {
+  assert.equal(
+    getDisplayGenre(["Comedy", "Drama", "Romance"]),
+    "Drama & Romance",
+  );
+  assert.equal(getDisplayGenre(["Comedy", "Drama"]), "Comedy");
+  assert.equal(getDisplayGenre(["Comedy", "Romance"]), "Comedy");
+});
+
+test("getDisplayGenre uses deterministic priority for rare genres", () => {
+  assert.equal(
+    getDisplayGenre(["Comedy", "Drama", "Sci-Fi & Fantasy"]),
+    "Science-Fiction",
+  );
+  assert.equal(getDisplayGenre(["Drama", "Crime", "Legal"]), "Crime");
+  assert.equal(getDisplayGenre(["Family"]), "Other");
+});
+
+test("getFilterGenres returns canonical genres without Family or redundant source genres", () => {
+  const filterGenres = getFilterGenres([
+    show("Adventure Show", ["Action", "Adventure", "Family"]),
+    show("Space Show", ["Sci-Fi", "Sci-Fi & Fantasy"]),
+    show("Love Story", ["Drama", "Romance"]),
+  ]);
+
+  assert.deepEqual(filterGenres, [
+    "All",
+    "Drama & Romance",
+    "Action & Adventure",
+    "Science-Fiction",
+  ]);
 });
