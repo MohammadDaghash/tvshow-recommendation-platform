@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
 import { buildDemoLibrary } from "./demoLibrary";
+import {
+  getRecommendationFetchToken,
+  groupShowsByCategory,
+  shouldUsePublicDataset,
+} from "./displayLibrary";
 import "./App.css";
 
 const SESSION_STORAGE_KEY = "tvshowUserSession";
@@ -187,6 +192,8 @@ function App() {
   const authToken = authSession?.token || "";
   const isAdmin = currentUser?.role === "admin";
   const isDemoMode = !currentUser;
+  const usesPublicDataset = shouldUsePublicDataset(currentUser);
+  const isAdminCatalogMode = isAdmin && usesPublicDataset;
 
   const loadAppData = useCallback(async (token = "") => {
     setInitialLoad({
@@ -244,7 +251,7 @@ function App() {
 
         saveStoredSession(nextSession);
         setAuthSession(nextSession);
-        await loadAppData(nextSession.token);
+        await loadAppData(getRecommendationFetchToken(nextSession));
       } catch (error) {
         console.error(error);
         clearStoredSession();
@@ -285,25 +292,25 @@ function App() {
     [recommendations],
   );
 
-  const userRecommendations = currentUser ? recommendations : null;
+  const privateRecommendations = usesPublicDataset ? [] : recommendations;
 
-  const watchedShows = currentUser
-    ? userRecommendations
+  const watchedShows = usesPublicDataset
+    ? demoLibrary.watchedShows
+    : privateRecommendations
         .filter((show) => show.status === "watched")
-        .sort((a, b) => (b.userRating || 0) - (a.userRating || 0))
-    : demoLibrary.watchedShows;
+        .sort((a, b) => (b.userRating || 0) - (a.userRating || 0));
 
-  const wantShows = currentUser
-    ? userRecommendations
+  const wantShows = usesPublicDataset
+    ? demoLibrary.wantShows
+    : privateRecommendations
         .filter((show) => show.status === "want")
-        .sort((a, b) => b.recommendationScore - a.recommendationScore)
-    : demoLibrary.wantShows;
+        .sort((a, b) => b.recommendationScore - a.recommendationScore);
 
-  const watchingShows = currentUser
-    ? userRecommendations
+  const watchingShows = usesPublicDataset
+    ? demoLibrary.watchingShows
+    : privateRecommendations
         .filter((show) => show.status === "watching")
-        .sort((a, b) => b.recommendationScore - a.recommendationScore)
-    : demoLibrary.watchingShows;
+        .sort((a, b) => b.recommendationScore - a.recommendationScore);
 
   const visibleAISuggestions = mlSuggestions.filter(
     (show) => !ignoredSuggestionIds.includes(show.tmdbId),
@@ -336,6 +343,8 @@ function App() {
 
     return matchesSearch && matchesGenre;
   });
+
+  const groupedShows = groupShowsByCategory(filteredShows, selectedGenre);
 
   const pageCounts = {
     watched: watchedShows.length,
@@ -391,8 +400,10 @@ function App() {
     action();
   };
 
-  const refreshRecommendations = async (token = authToken) => {
-    const { nextRecommendations } = await fetchInitialData(token);
+  const refreshRecommendations = async () => {
+    const { nextRecommendations } = await fetchInitialData(
+      getRecommendationFetchToken(authSession),
+    );
     setRecommendations(nextRecommendations);
   };
 
@@ -444,7 +455,7 @@ function App() {
         email: "",
         password: "",
       });
-      await loadAppData(nextSession.token);
+      await loadAppData(getRecommendationFetchToken(nextSession));
       showNotice(
         "success",
         isSignup ? "Account created" : "Logged in",
@@ -664,11 +675,27 @@ function App() {
     }
   };
 
+  const requestCatalogDelete = (show) => {
+    setDetailsShow(null);
+    setShowToDelete(show);
+  };
+
   const renderShowActions = (show) => {
     if (isDemoMode) {
       return (
         <button className="watch-button compact-action" onClick={promptForPrivateList}>
           Sign in to use this
+        </button>
+      );
+    }
+
+    if (isAdminCatalogMode) {
+      return (
+        <button
+          className="danger-button compact-action"
+          onClick={() => requestCatalogDelete(show)}
+        >
+          Delete Catalog
         </button>
       );
     }
@@ -791,6 +818,27 @@ function App() {
             <button className="watch-button compact-action" onClick={promptForPrivateList}>
               Sign in to use this
             </button>
+          ) : isAdmin ? (
+            <>
+              <button
+                className="watch-button compact-action"
+                disabled={isImporting}
+                onClick={() => importTVShow(show.tmdbId)}
+              >
+                {isImporting ? "Importing..." : "Add to Catalog"}
+              </button>
+              <button
+                className="secondary-button compact-action"
+                onClick={() =>
+                  setDetailsShow({
+                    ...show,
+                    isAISuggestion: true,
+                  })
+                }
+              >
+                View Details
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -818,11 +866,13 @@ function App() {
     </article>
   );
 
+  const renderPageCard = activePage === "ai" ? renderSuggestionCard : renderCard;
+
   if (initialLoad.status !== "ready") {
     return (
       <LoadingScreen
         error={initialLoad.status === "error" ? initialLoad.error : ""}
-        onRetry={() => loadAppData(authToken)}
+        onRetry={() => loadAppData(getRecommendationFetchToken(authSession))}
       />
     );
   }
@@ -964,10 +1014,22 @@ function App() {
               )}
             </div>
           ) : (
-            <div className="show-grid">
-              {activePage === "ai"
-                ? filteredShows.map(renderSuggestionCard)
-                : filteredShows.map(renderCard)}
+            <div className="grouped-show-sections">
+              {groupedShows.map((group) => (
+                <section className="genre-group" key={group.category}>
+                  <div className="genre-group-header">
+                    <h3>{group.category}</h3>
+                    <span>
+                      {group.shows.length}{" "}
+                      {group.shows.length === 1 ? "show" : "shows"}
+                    </span>
+                  </div>
+
+                  <div className="carousel-row genre-carousel">
+                    {group.shows.map(renderPageCard)}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </section>
@@ -1123,6 +1185,14 @@ function App() {
                       <button className="watch-button" onClick={promptForPrivateList}>
                         Sign in to use this
                       </button>
+                    ) : isAdmin ? (
+                      <button
+                        className="watch-button"
+                        disabled={isImporting}
+                        onClick={() => importTVShow(detailsShow.tmdbId)}
+                      >
+                        {isImporting ? "Importing..." : "Add to Catalog"}
+                      </button>
                     ) : (
                       <>
                         <button
@@ -1193,7 +1263,7 @@ function App() {
                   <div className="details-actions">
                     {renderShowActions(detailsShow)}
 
-                    {isAdmin && (
+                    {isAdmin && !isAdminCatalogMode && (
                       <button
                         className="danger-button"
                         onClick={() => {

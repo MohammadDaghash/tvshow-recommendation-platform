@@ -2,6 +2,7 @@ const TVShow = require("../models/TVShow");
 const UserShow = require("../models/UserShow");
 const recommendationService = require("../services/recommendation.service");
 const { getTVShowDetailsById } = require("../services/tmdb.service");
+const { buildTMDBCatalogUpdate } = require("../services/tmdbCatalog.service");
 const { buildUserShowUpdate } = require("../services/userLibrary.service");
 
 const getRecommendations = async (req, res) => {
@@ -140,17 +141,7 @@ const addTMDBToLibrary = async (req, res) => {
       {
         tmdbId: tmdbShow.tmdbId,
       },
-      {
-        title: tmdbShow.title,
-        genres: tmdbShow.genres,
-        year: tmdbShow.year,
-        imageUrl: tmdbShow.imageUrl,
-        overview: tmdbShow.overview,
-        popularity: tmdbShow.popularity,
-        tmdbRating: tmdbShow.tmdbRating,
-        tmdbId: tmdbShow.tmdbId,
-        recommendationScore: 0,
-      },
+      buildTMDBCatalogUpdate(tmdbShow),
       {
         returnDocument: "after",
         setDefaultsOnInsert: true,

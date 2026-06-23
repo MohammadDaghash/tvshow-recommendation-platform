@@ -712,6 +712,47 @@ h1 {
   max-width: none;
 }
 
+.grouped-show-sections {
+  display: grid;
+  gap: 34px;
+}
+
+.genre-group {
+  min-width: 0;
+}
+
+.genre-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.genre-group-header h3 {
+  margin: 0;
+  color: var(--cinema-text);
+  font-size: 22px;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.genre-group-header span {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 1px solid rgba(143, 184, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--cinema-muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.genre-carousel {
+  padding-bottom: 26px;
+}
+
 .card-actions {
   position: relative;
   z-index: 2;
@@ -1193,6 +1234,20 @@ h1 {
 
   .section-title::after {
     width: 48px;
+  }
+
+  .grouped-show-sections {
+    gap: 28px;
+  }
+
+  .genre-group-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .genre-group-header h3 {
+    font-size: 20px;
   }
 
   .demo-banner {
