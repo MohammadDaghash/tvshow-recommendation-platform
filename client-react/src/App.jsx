@@ -1,6 +1,32 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
 import "./App.css";
+
+const SESSION_STORAGE_KEY = "tvshowUserSession";
+const LEGACY_ADMIN_TOKEN_KEY = "adminToken";
+
+const pageConfig = {
+  watched: {
+    label: "Watched",
+    emptyTitle: "No watched shows yet",
+    emptyText: "Mark shows as watched and rate them to improve your suggestions.",
+  },
+  want: {
+    label: "Want to Watch",
+    emptyTitle: "Your watchlist is empty",
+    emptyText: "Add shows from AI Suggestions or move shows here for later.",
+  },
+  watching: {
+    label: "Currently Watching",
+    emptyTitle: "Nothing in progress",
+    emptyText: "Start watching a show to keep it visible while you work through it.",
+  },
+  ai: {
+    label: "AI Suggestions",
+    emptyTitle: "No AI suggestions right now",
+    emptyText: "Rate more watched shows or try again after adding more to your list.",
+  },
+};
 
 function LoadingScreen({ error, onRetry }) {
   return (
@@ -27,9 +53,72 @@ function LoadingScreen({ error, onRetry }) {
   );
 }
 
-async function fetchInitialData() {
+function readStoredSession() {
+  try {
+    const storedSession = localStorage.getItem(SESSION_STORAGE_KEY);
+
+    if (storedSession) {
+      return JSON.parse(storedSession);
+    }
+
+    const legacyAdminToken = localStorage.getItem(LEGACY_ADMIN_TOKEN_KEY);
+
+    if (legacyAdminToken) {
+      return {
+        token: legacyAdminToken,
+        user: null,
+      };
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  return null;
+}
+
+function saveStoredSession(session) {
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+
+  if (session.user?.role === "admin") {
+    localStorage.setItem(LEGACY_ADMIN_TOKEN_KEY, session.token);
+  } else {
+    localStorage.removeItem(LEGACY_ADMIN_TOKEN_KEY);
+  }
+}
+
+function clearStoredSession() {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_ADMIN_TOKEN_KEY);
+}
+
+function authHeaders(token, headers = {}) {
+  return token
+    ? {
+        ...headers,
+        Authorization: `Bearer ${token}`,
+      }
+    : headers;
+}
+
+async function parseJSONResponse(response) {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "Request failed. Please try again.");
+  }
+
+  return data;
+}
+
+async function fetchInitialData(token) {
+  const recommendationsOptions = token
+    ? {
+        headers: authHeaders(token),
+      }
+    : undefined;
+
   const [recommendationsResponse, mlSuggestionsResponse] = await Promise.all([
-    fetch(apiUrl("/api/recommendations")),
+    fetch(apiUrl("/api/recommendations"), recommendationsOptions),
     fetch(apiUrl("/api/ml-recommendations/tmdb")),
   ]);
 
@@ -48,7 +137,22 @@ async function fetchInitialData() {
   };
 }
 
+async function fetchIgnoredSuggestionIds(token) {
+  if (!token) return [];
+
+  const response = await fetch(apiUrl("/api/ignored-suggestions"), {
+    headers: authHeaders(token),
+  });
+
+  if (!response.ok) return [];
+
+  const ignoredSuggestions = await response.json();
+
+  return ignoredSuggestions.map((suggestion) => suggestion.tmdbId);
+}
+
 function App() {
+  const [authSession, setAuthSession] = useState(readStoredSession);
   const [recommendations, setRecommendations] = useState([]);
   const [mlSuggestions, setMlSuggestions] = useState([]);
   const [initialLoad, setInitialLoad] = useState({
@@ -57,8 +161,8 @@ function App() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
-  const [activeTab, setActiveTab] = useState("watched");
-  const [selectedShow, setSelectedShow] = useState(null);
+  const [activePage, setActivePage] = useState("watched");
+  const [ratingTarget, setRatingTarget] = useState(null);
   const [ratingInput, setRatingInput] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newShowTitle, setNewShowTitle] = useState("");
@@ -67,29 +171,37 @@ function App() {
   const [selectedTMDBShow, setSelectedTMDBShow] = useState(null);
   const [detailsShow, setDetailsShow] = useState(null);
   const [showToDelete, setShowToDelete] = useState(null);
-  const [adminToken, setAdminToken] = useState(
-    localStorage.getItem("adminToken") || "",
-  );
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [, setIsUserLoginOpen] = useState(false);
-  const [, setIsSignupOpen] = useState(false);
-  const [loginError, setLoginError] = useState("");
+  const [authModal, setAuthModal] = useState(null);
+  const [authForm, setAuthForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+  const [authError, setAuthError] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [notice, setNotice] = useState(null);
   const [ignoredSuggestionIds, setIgnoredSuggestionIds] = useState([]);
 
-  const loadInitialData = useCallback(async () => {
+  const currentUser = authSession?.user || null;
+  const authToken = authSession?.token || "";
+  const isAdmin = currentUser?.role === "admin";
+
+  const loadAppData = useCallback(async (token = "") => {
     setInitialLoad({
       status: "loading",
       error: "",
     });
 
     try {
-      const { nextRecommendations, nextMlSuggestions } =
-        await fetchInitialData();
+      const [{ nextRecommendations, nextMlSuggestions }, nextIgnoredIds] =
+        await Promise.all([
+          fetchInitialData(token),
+          fetchIgnoredSuggestionIds(token),
+        ]);
 
       setRecommendations(nextRecommendations);
       setMlSuggestions(nextMlSuggestions);
+      setIgnoredSuggestionIds(nextIgnoredIds);
       setInitialLoad({
         status: "ready",
         error: "",
@@ -107,230 +219,362 @@ function App() {
   useEffect(() => {
     let isCurrent = true;
 
-    async function loadAppData() {
+    async function hydrateApp() {
+      const storedSession = readStoredSession();
+
+      if (!storedSession?.token) {
+        await loadAppData("");
+        return;
+      }
+
       try {
-        const { nextRecommendations, nextMlSuggestions } =
-          await fetchInitialData();
-
-        if (!isCurrent) {
-          return;
-        }
-
-        setRecommendations(nextRecommendations);
-        setMlSuggestions(nextMlSuggestions);
-        setInitialLoad({
-          status: "ready",
-          error: "",
+        const response = await fetch(apiUrl("/api/auth/me"), {
+          headers: authHeaders(storedSession.token),
         });
+        const data = await parseJSONResponse(response);
+
+        if (!isCurrent) return;
+
+        const nextSession = {
+          token: storedSession.token,
+          user: data.user,
+        };
+
+        saveStoredSession(nextSession);
+        setAuthSession(nextSession);
+        await loadAppData(nextSession.token);
       } catch (error) {
-        if (!isCurrent) {
-          return;
-        }
+        console.error(error);
+        clearStoredSession();
 
-        setInitialLoad({
-          status: "error",
-          error:
-            error.message ||
-            "Something went wrong while connecting to the database.",
-        });
+        if (!isCurrent) return;
+
+        setAuthSession(null);
+        await loadAppData("");
       }
     }
 
-    loadAppData();
+    hydrateApp();
 
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [loadAppData]);
 
-  const watchedShows = recommendations
-    .filter((show) => show.watched === true)
-    .sort((a, b) => b.userRating - a.userRating);
+  const hasOpenModal = Boolean(
+    authModal ||
+      detailsShow ||
+      isAddModalOpen ||
+      notice ||
+      ratingTarget ||
+      showToDelete,
+  );
 
-  const unwatchedShows = recommendations
-    .filter((show) => show.watched === false)
+  useEffect(() => {
+    document.body.classList.toggle("modal-open", hasOpenModal);
+
+    return () => {
+      document.body.classList.remove("modal-open");
+    };
+  }, [hasOpenModal]);
+
+  const userRecommendations = currentUser ? recommendations : [];
+
+  const watchedShows = userRecommendations
+    .filter((show) => show.status === "watched")
+    .sort((a, b) => (b.userRating || 0) - (a.userRating || 0));
+
+  const wantShows = userRecommendations
+    .filter((show) => show.status === "want")
     .sort((a, b) => b.recommendationScore - a.recommendationScore);
 
-  const currentShows = activeTab === "watched" ? watchedShows : unwatchedShows;
+  const watchingShows = userRecommendations
+    .filter((show) => show.status === "watching")
+    .sort((a, b) => b.recommendationScore - a.recommendationScore);
+
+  const visibleAISuggestions = mlSuggestions.filter(
+    (show) => !ignoredSuggestionIds.includes(show.tmdbId),
+  );
+
+  const pageShows = useMemo(() => {
+    if (activePage === "watched") return watchedShows;
+    if (activePage === "want") return wantShows;
+    if (activePage === "watching") return watchingShows;
+    return visibleAISuggestions;
+  }, [activePage, visibleAISuggestions, wantShows, watchedShows, watchingShows]);
 
   const allGenres = [
     "All",
     ...new Set(
-      currentShows
-        .flatMap((show) => show.genres)
+      pageShows
+        .flatMap((show) => show.genres || [])
         .filter(Boolean)
         .sort(),
     ),
   ];
 
-  const filteredShows = currentShows.filter((show) => {
+  const filteredShows = pageShows.filter((show) => {
     const matchesSearch = show.title
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
 
     const matchesGenre =
-      selectedGenre === "All" || show.genres.includes(selectedGenre);
+      selectedGenre === "All" || show.genres?.includes(selectedGenre);
 
     return matchesSearch && matchesGenre;
   });
 
-  const isFiltering = searchTerm !== "" || selectedGenre !== "All";
-
-  const getPrimaryCategory = (show) => {
-    const genres = show.genres;
-
-    if (genres.includes("Animation") || genres.includes("Anime")) {
-      return "Animation";
-    }
-
-    if (
-      genres.includes("Fantasy") ||
-      genres.includes("Sci-Fi") ||
-      genres.includes("Science Fiction") ||
-      genres.includes("Science-Fiction") ||
-      genres.includes("Sci-Fi & Fantasy") ||
-      genres.includes("Adventure")
-    ) {
-      return "Fantasy & Sci-Fi";
-    }
-
-    if (
-      genres.includes("Crime") ||
-      genres.includes("Thriller") ||
-      genres.includes("Mystery") ||
-      genres.includes("Horror")
-    ) {
-      return "Crime & Thriller";
-    }
-
-    if (genres.includes("Drama") && genres.includes("Romance")) {
-      return "Drama & Romance";
-    }
-
-    if (genres.includes("Comedy")) {
-      return "Comedy";
-    }
-
-    return "Drama & Romance";
+  const pageCounts = {
+    watched: watchedShows.length,
+    want: wantShows.length,
+    watching: watchingShows.length,
+    ai: visibleAISuggestions.length,
   };
 
-  const categoryOrder = [
-    "Comedy",
-    "Drama & Romance",
-    "Crime & Thriller",
-    "Fantasy & Sci-Fi",
-    "Animation",
-  ];
-
-  const showsByCategory = categoryOrder
-    .map((category) => ({
-      category,
-      shows: currentShows.filter(
-        (show) => getPrimaryCategory(show) === category,
-      ),
-    }))
-    .filter((group) => group.shows.length > 0);
-
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
+  const handlePageChange = (page) => {
+    setActivePage(page);
     setSearchTerm("");
     setSelectedGenre("All");
   };
 
+  const showNotice = (type, title, message) => {
+    setNotice({
+      type,
+      title,
+      message,
+    });
+  };
+
+  const openAuthModal = (mode, message = "") => {
+    setAuthModal(mode);
+    setAuthError(message);
+    setAuthForm({
+      name: "",
+      email: "",
+      password: "",
+    });
+  };
+
+  const requireUser = (message = "Log in to manage your private watch list.") => {
+    if (currentUser) return true;
+
+    openAuthModal("login", message);
+    return false;
+  };
+
+  const requireAdmin = (action) => {
+    if (!isAdmin) {
+      openAuthModal("admin", "Admin access is required for this action.");
+      return;
+    }
+
+    action();
+  };
+
+  const refreshRecommendations = async (token = authToken) => {
+    const { nextRecommendations } = await fetchInitialData(token);
+    setRecommendations(nextRecommendations);
+  };
+
+  const refreshMLSuggestions = async () => {
+    const response = await fetch(apiUrl("/api/ml-recommendations/tmdb"));
+    const data = await parseJSONResponse(response);
+
+    setMlSuggestions(data);
+  };
+
+  const handleAuthSubmit = async () => {
+    setAuthBusy(true);
+    setAuthError("");
+
+    try {
+      const isSignup = authModal === "signup";
+      const response = await fetch(
+        apiUrl(isSignup ? "/api/auth/register" : "/api/auth/login"),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: authForm.name,
+            email: authForm.email,
+            password: authForm.password,
+          }),
+        },
+      );
+
+      const data = await parseJSONResponse(response);
+
+      if (authModal === "admin" && data.user.role !== "admin") {
+        setAuthError("This account does not have admin access.");
+        return;
+      }
+
+      const nextSession = {
+        token: data.token,
+        user: data.user,
+      };
+
+      saveStoredSession(nextSession);
+      setAuthSession(nextSession);
+      setAuthModal(null);
+      setAuthForm({
+        name: "",
+        email: "",
+        password: "",
+      });
+      await loadAppData(nextSession.token);
+      showNotice(
+        "success",
+        isSignup ? "Account created" : "Logged in",
+        `Welcome${data.user.name ? `, ${data.user.name}` : ""}.`,
+      );
+    } catch (error) {
+      setAuthError(error.message);
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const logout = async () => {
+    clearStoredSession();
+    setAuthSession(null);
+    setIgnoredSuggestionIds([]);
+    setActivePage("ai");
+    await loadAppData("");
+    showNotice("success", "Logged out", "Your private list is no longer shown.");
+  };
+
+  const updateLibraryStatus = async (
+    show,
+    status,
+    { userRating, successMessage } = {},
+  ) => {
+    if (!requireUser()) return;
+
+    try {
+      const response = await fetch(
+        apiUrl(`/api/recommendations/${show._id}/status`),
+        {
+          method: "PATCH",
+          headers: authHeaders(authToken, {
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({
+            status,
+            userRating,
+          }),
+        },
+      );
+
+      await parseJSONResponse(response);
+      await refreshRecommendations();
+      setDetailsShow(null);
+      setActivePage(status === "want" ? "want" : status);
+      showNotice("success", "List updated", successMessage);
+    } catch (error) {
+      showNotice("error", "Could not update list", error.message);
+    }
+  };
+
   const openRatingModal = (show) => {
-    setSelectedShow(show);
-    setRatingInput("");
+    if (!requireUser()) return;
+
+    setDetailsShow(null);
+    setRatingTarget(show);
+    setRatingInput(show.userRating ? String(show.userRating) : "");
   };
 
   const submitRating = async () => {
     const rating = Number(ratingInput);
 
-    if (rating < 0 || rating > 10) {
-      alert("Rating must be between 0 and 10");
+    if (!Number.isFinite(rating) || rating < 0 || rating > 10) {
+      showNotice("error", "Invalid rating", "Rating must be between 0 and 10.");
       return;
     }
 
-    await fetch(
-      apiUrl(`/api/recommendations/${selectedShow._id}/watch`),
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${adminToken}`,
+    await updateLibraryStatus(ratingTarget, "watched", {
+      userRating: rating,
+      successMessage: "Saved to Watched with your rating.",
+    });
+    setRatingTarget(null);
+    setRatingInput("");
+  };
+
+  const removeFromLibrary = async (show) => {
+    if (!requireUser()) return;
+
+    try {
+      const response = await fetch(
+        apiUrl(`/api/recommendations/${show._id}/library`),
+        {
+          method: "DELETE",
+          headers: authHeaders(authToken),
         },
-        body: JSON.stringify({
-          userRating: rating,
+      );
+
+      await parseJSONResponse(response);
+      await refreshRecommendations();
+      setDetailsShow(null);
+      showNotice("success", "Removed", `${show.title} was removed from your list.`);
+    } catch (error) {
+      showNotice("error", "Could not remove show", error.message);
+    }
+  };
+
+  const addSuggestionToLibrary = async (show, status) => {
+    if (!requireUser()) return;
+
+    try {
+      const response = await fetch(apiUrl("/api/recommendations/from-tmdb"), {
+        method: "POST",
+        headers: authHeaders(authToken, {
+          "Content-Type": "application/json",
         }),
-      },
-    );
+        body: JSON.stringify({
+          tmdbId: show.tmdbId,
+          status,
+        }),
+      });
 
-    await refreshRecommendations();
-
-    setSelectedShow(null);
-    setActiveTab("watched");
-  };
-
-  const refreshRecommendations = async () => {
-    const response = await fetch(apiUrl("/api/recommendations"));
-    const updatedRecommendations = await response.json();
-
-    setRecommendations(updatedRecommendations);
-  };
-
-  const refreshMLSuggestions = async () => {
-    const response = await fetch(apiUrl("/api/ml-recommendations/tmdb"));
-
-    const data = await response.json();
-
-    setMlSuggestions(data);
+      await parseJSONResponse(response);
+      await refreshRecommendations();
+      await refreshMLSuggestions();
+      setDetailsShow(null);
+      setActivePage(status === "want" ? "want" : status);
+      showNotice(
+        "success",
+        "Added to your list",
+        `${show.title} was moved to ${pageConfig[status === "want" ? "want" : status].label}.`,
+      );
+    } catch (error) {
+      showNotice("error", "Could not add show", error.message);
+    }
   };
 
   const ignoreSuggestion = async (tmdbId, title) => {
+    if (!requireUser()) return;
+
     try {
-      await fetch(apiUrl("/api/ignored-suggestions"), {
+      const response = await fetch(apiUrl("/api/ignored-suggestions"), {
         method: "POST",
-        headers: {
+        headers: authHeaders(authToken, {
           "Content-Type": "application/json",
-        },
+        }),
         body: JSON.stringify({
           tmdbId,
           title,
         }),
       });
 
-      await refreshMLSuggestions();
-
+      await parseJSONResponse(response);
       setIgnoredSuggestionIds((previousIds) => [...previousIds, tmdbId]);
-
       setDetailsShow(null);
+      showNotice("success", "Suggestion hidden", `${title} will stay hidden.`);
     } catch (error) {
-      console.error(error);
+      showNotice("error", "Could not hide suggestion", error.message);
     }
-  };
-
-  const moveToWantToWatch = async (showId) => {
-    await fetch(apiUrl(`/api/recommendations/${showId}/unwatch`), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${adminToken}`,
-      },
-    });
-
-    await refreshRecommendations();
-    setActiveTab("unwatched");
-  };
-
-  const deleteTVShow = async (showId) => {
-    await fetch(apiUrl(`/api/recommendations/${showId}`), {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${adminToken}`,
-      },
-    });
-
-    await refreshRecommendations();
-    setShowToDelete(null);
-    setDetailsShow(null);
   };
 
   const searchTMDBShows = async () => {
@@ -338,94 +582,137 @@ function App() {
       return;
     }
 
-    const response = await fetch(
-      apiUrl(`/api/tmdb/search?title=${encodeURIComponent(newShowTitle)}`),
-    );
+    try {
+      const response = await fetch(
+        apiUrl(`/api/tmdb/search?title=${encodeURIComponent(newShowTitle)}`),
+      );
+      const results = await parseJSONResponse(response);
 
-    const results = await response.json();
-
-    setTmdbResults(results);
+      setTmdbResults(results);
+    } catch (error) {
+      showNotice("error", "Search failed", error.message);
+    }
   };
 
   const importTVShow = async (tmdbId) => {
     setIsImporting(true);
 
-    await fetch(apiUrl("/api/tmdb/import"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`,
-      },
-      body: JSON.stringify({
-        tmdbId,
-      }),
-    });
+    try {
+      const response = await fetch(apiUrl("/api/tmdb/import"), {
+        method: "POST",
+        headers: authHeaders(authToken, {
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          tmdbId,
+        }),
+      });
 
-    await refreshRecommendations();
-    await refreshMLSuggestions();
+      await parseJSONResponse(response);
+      await refreshRecommendations();
+      await refreshMLSuggestions();
 
-    setDetailsShow(null);
-    setNewShowTitle("");
-    setTmdbResults([]);
-    setSelectedTMDBShow(null);
-    setIsAddModalOpen(false);
-    setIsImporting(false);
-    setActiveTab("unwatched");
+      setDetailsShow(null);
+      setNewShowTitle("");
+      setTmdbResults([]);
+      setSelectedTMDBShow(null);
+      setIsAddModalOpen(false);
+      setActivePage("want");
+      showNotice("success", "Show imported", "The catalog has been updated.");
+    } catch (error) {
+      showNotice("error", "Import failed", error.message);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
-  const isAdmin = Boolean(adminToken);
+  const deleteTVShow = async (showId) => {
+    try {
+      const response = await fetch(apiUrl(`/api/recommendations/${showId}`), {
+        method: "DELETE",
+        headers: authHeaders(authToken),
+      });
 
-  const requireAdmin = (action) => {
-    if (!isAdmin) {
-      setIsLoginModalOpen(true);
-      return;
+      await parseJSONResponse(response);
+      await refreshRecommendations();
+      await refreshMLSuggestions();
+      setShowToDelete(null);
+      setDetailsShow(null);
+      showNotice("success", "Catalog show deleted", "The show was removed.");
+    } catch (error) {
+      showNotice("error", "Delete failed", error.message);
+    }
+  };
+
+  const renderShowActions = (show) => {
+    if (show.status === "watched") {
+      return (
+        <>
+          <button className="secondary-button compact-action" onClick={() => openRatingModal(show)}>
+            Edit Rating
+          </button>
+          <button className="danger-button compact-action" onClick={() => removeFromLibrary(show)}>
+            Remove
+          </button>
+        </>
+      );
     }
 
-    action();
-  };
-
-  const loginAdmin = async () => {
-    const response = await fetch(apiUrl("/api/auth/login"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: loginEmail,
-        password: loginPassword,
-      }),
-    });
-
-    if (!response.ok) {
-      setLoginError("Invalid email or password.");
-      return;
+    if (show.status === "watching") {
+      return (
+        <>
+          <button className="watch-button compact-action" onClick={() => openRatingModal(show)}>
+            Mark Watched
+          </button>
+          <button
+            className="secondary-button compact-action"
+            onClick={() =>
+              updateLibraryStatus(show, "want", {
+                successMessage: "Moved back to Want to Watch.",
+              })
+            }
+          >
+            Move to Want
+          </button>
+          <button className="danger-button compact-action" onClick={() => removeFromLibrary(show)}>
+            Stop Watching
+          </button>
+        </>
+      );
     }
 
-    const data = await response.json();
-
-    localStorage.setItem("adminToken", data.token);
-    setAdminToken(data.token);
-    setLoginError("");
-    setIsLoginModalOpen(false);
-    setLoginEmail("");
-    setLoginPassword("");
-  };
-
-  const logoutAdmin = () => {
-    localStorage.removeItem("adminToken");
-    setAdminToken("");
+    return (
+      <>
+        <button
+          className="watch-button compact-action"
+          onClick={() =>
+            updateLibraryStatus(show, "watching", {
+              successMessage: "Moved to Currently Watching.",
+            })
+          }
+        >
+          Start Watching
+        </button>
+        <button className="secondary-button compact-action" onClick={() => openRatingModal(show)}>
+          Mark Watched
+        </button>
+        <button className="danger-button compact-action" onClick={() => removeFromLibrary(show)}>
+          Remove
+        </button>
+      </>
+    );
   };
 
   const renderCard = (show) => (
-    <div
-      className="tv-card"
-      key={show._id}
-      onClick={() => setDetailsShow(show)}
-    >
+    <article className="tv-card" key={show._id} onClick={() => setDetailsShow(show)}>
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />
-        <span className={show.watched ? "card-badge rating" : "card-badge score"}>
-          {show.watched ? `${show.userRating}/10` : `${show.recommendationScore}%`}
+        <span className={show.status === "watched" ? "card-badge rating" : "card-badge score"}>
+          {show.status === "watched"
+            ? `${show.userRating}/10`
+            : show.status === "watching"
+              ? "Watching"
+              : `${show.recommendationScore}%`}
         </span>
       </div>
 
@@ -434,20 +721,72 @@ function App() {
         <p className="genre-line">{show.genres.join(", ")}</p>
         <p className="year-line">Year: {show.year}</p>
 
-        {show.watched ? (
+        {show.status === "watched" ? (
           <p className="rating">Your Rating: {show.userRating}</p>
+        ) : show.status === "watching" ? (
+          <p className="score">In progress</p>
         ) : (
           <p className="score">Match Score: {show.recommendationScore}%</p>
         )}
+
+        <div className="card-actions" onClick={(event) => event.stopPropagation()}>
+          {renderShowActions(show)}
+        </div>
       </div>
-    </div>
+    </article>
+  );
+
+  const renderSuggestionCard = (show) => (
+    <article
+      className="tv-card ai-card"
+      key={show.tmdbId || show.title}
+      onClick={() =>
+        setDetailsShow({
+          ...show,
+          isAISuggestion: true,
+        })
+      }
+    >
+      <div className="poster-frame">
+        <img src={show.imageUrl} alt={show.title} />
+        <span className="card-badge score">{show.matchScore}%</span>
+      </div>
+
+      <div className="tv-card-body">
+        <h3>{show.title}</h3>
+        <p className="genre-line">{show.genres.join(", ")}</p>
+        <p className="year-line">Year: {show.year}</p>
+        <p className="score">Match Score: {show.matchScore}%</p>
+
+        <div className="card-actions" onClick={(event) => event.stopPropagation()}>
+          <button
+            className="watch-button compact-action"
+            onClick={() => addSuggestionToLibrary(show, "want")}
+          >
+            Want
+          </button>
+          <button
+            className="secondary-button compact-action"
+            onClick={() => addSuggestionToLibrary(show, "watching")}
+          >
+            Start
+          </button>
+          <button
+            className="danger-button compact-action"
+            onClick={() => ignoreSuggestion(show.tmdbId, show.title)}
+          >
+            Not Interested
+          </button>
+        </div>
+      </div>
+    </article>
   );
 
   if (initialLoad.status !== "ready") {
     return (
       <LoadingScreen
         error={initialLoad.status === "error" ? initialLoad.error : ""}
-        onRetry={loadInitialData}
+        onRetry={() => loadAppData(authToken)}
       />
     );
   }
@@ -465,66 +804,70 @@ function App() {
               Watched
             </span>
             <span>
-              <strong>{unwatchedShows.length}</strong>
+              <strong>{wantShows.length}</strong>
               Watchlist
             </span>
             <span>
-              <strong>{mlSuggestions.length}</strong>
+              <strong>{watchingShows.length}</strong>
+              Watching
+            </span>
+            <span>
+              <strong>{visibleAISuggestions.length}</strong>
               AI Picks
             </span>
           </div>
         </div>
 
         <div className="top-bar">
-          <div className="auth-buttons">
-            <button
-              className="secondary-button"
-              onClick={() => setIsUserLoginOpen(true)}
-            >
-              Login
-            </button>
-
-            <button
-              className="secondary-button"
-              onClick={() => setIsSignupOpen(true)}
-            >
-              Sign Up
-            </button>
-          </div>
-
-          <div className="admin-bar">
-            {isAdmin ? (
-              <button className="secondary-button" onClick={logoutAdmin}>
-                Admin Logout
+          {currentUser ? (
+            <div className="auth-buttons">
+              <span className="session-pill">
+                {currentUser.name} {isAdmin ? "(Admin)" : ""}
+              </span>
+              <button className="secondary-button" onClick={logout}>
+                Log Out
               </button>
-            ) : (
+            </div>
+          ) : (
+            <div className="auth-buttons">
               <button
                 className="secondary-button"
-                onClick={() => setIsLoginModalOpen(true)}
+                onClick={() => openAuthModal("login")}
+              >
+                Login
+              </button>
+
+              <button
+                className="secondary-button"
+                onClick={() => openAuthModal("signup")}
+              >
+                Sign Up
+              </button>
+
+              <button
+                className="secondary-button"
+                onClick={() => openAuthModal("admin")}
               >
                 Admin Login
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </header>
 
       <main className="content-shell">
         <div className="control-panel">
           <div className="tabs">
-            <button
-              className={activeTab === "watched" ? "tab active-tab" : "tab"}
-              onClick={() => handleTabChange("watched")}
-            >
-              Watched
-            </button>
-
-            <button
-              className={activeTab === "unwatched" ? "tab active-tab" : "tab"}
-              onClick={() => handleTabChange("unwatched")}
-            >
-              Want to Watch
-            </button>
+            {Object.entries(pageConfig).map(([page, config]) => (
+              <button
+                className={activePage === page ? "tab active-tab" : "tab"}
+                key={page}
+                onClick={() => handlePageChange(page)}
+              >
+                {config.label}
+                <span className="page-count">{pageCounts[page]}</span>
+              </button>
+            ))}
 
             <button
               className="add-show-button"
@@ -539,13 +882,13 @@ function App() {
               type="text"
               placeholder="Search TV shows..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
               className="search-input"
             />
 
             <select
               value={selectedGenre}
-              onChange={(e) => setSelectedGenre(e.target.value)}
+              onChange={(event) => setSelectedGenre(event.target.value)}
               className="genre-select"
             >
               {allGenres.map((genre) => (
@@ -557,74 +900,47 @@ function App() {
           </div>
         </div>
 
-      {isFiltering ? (
         <section className="show-section">
-          <h2 className="section-title">Filtered Results</h2>
-          <div className="carousel-row">{filteredShows.map(renderCard)}</div>
-        </section>
-      ) : (
-        <>
-          {activeTab === "unwatched" && (
-            <>
-              <section className="show-section spotlight-section">
-                <h2 className="section-title">AI Suggestions</h2>
+          <h2 className="section-title">{pageConfig[activePage].label}</h2>
 
-                <div className="carousel-row">
-                  {mlSuggestions
-                    .filter(
-                      (show) => !ignoredSuggestionIds.includes(show.tmdbId),
-                    )
-                    .map((show) => (
-                      <div
-                        className="tv-card ai-card"
-                        key={show.title}
-                        onClick={() => setDetailsShow(show)}
-                      >
-                        <div className="poster-frame">
-                          <img src={show.imageUrl} alt={show.title} />
-                          <span className="card-badge score">
-                            {show.matchScore}%
-                          </span>
-                        </div>
-
-                        <div className="tv-card-body">
-                          <h3>{show.title}</h3>
-
-                          <p className="genre-line">{show.genres.join(", ")}</p>
-
-                          <p className="year-line">Year: {show.year}</p>
-
-                          <p className="score">Match Score: {show.matchScore}%</p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </section>
-
-              <section className="show-section">
-                <h2 className="section-title">Want to Watch</h2>
-
-                <div className="carousel-row">
-                  {unwatchedShows.map(renderCard)}
-                </div>
-              </section>
-            </>
+          {!currentUser && activePage !== "ai" ? (
+            <div className="empty-state">
+              <h3>Sign in to see your private list</h3>
+              <p>
+                Your watched, watchlist, and currently watching pages are private
+                to your account.
+              </p>
+              <button className="watch-button" onClick={() => openAuthModal("login")}>
+                Login
+              </button>
+            </div>
+          ) : filteredShows.length === 0 ? (
+            <div className="empty-state">
+              <h3>{pageConfig[activePage].emptyTitle}</h3>
+              <p>{pageConfig[activePage].emptyText}</p>
+              {activePage !== "ai" && (
+                <button className="secondary-button" onClick={() => handlePageChange("ai")}>
+                  Browse AI Suggestions
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="show-grid">
+              {activePage === "ai"
+                ? filteredShows.map(renderSuggestionCard)
+                : filteredShows.map(renderCard)}
+            </div>
           )}
-
-          {showsByCategory.map((group) => (
-            <section className="show-section" key={group.category}>
-              <h2 className="section-title">{group.category}</h2>
-              <div className="carousel-row">{group.shows.map(renderCard)}</div>
-            </section>
-          ))}
-        </>
-      )}
+        </section>
       </main>
 
-      {selectedShow && (
-        <div className="modal-overlay">
+      {ratingTarget && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="rating-modal">
-            <h2>Rate "{selectedShow.title}"</h2>
+            <h2>Rate "{ratingTarget.title}"</h2>
+            <p className="modal-subtext">
+              Your rating tunes future recommendations for this account.
+            </p>
 
             <input
               type="number"
@@ -632,7 +948,7 @@ function App() {
               max="10"
               step="0.1"
               value={ratingInput}
-              onChange={(e) => setRatingInput(e.target.value)}
+              onChange={(event) => setRatingInput(event.target.value)}
               placeholder="Enter rating..."
               className="rating-input"
             />
@@ -640,7 +956,10 @@ function App() {
             <div className="modal-buttons">
               <button
                 className="cancel-button"
-                onClick={() => setSelectedShow(null)}
+                onClick={() => {
+                  setRatingTarget(null);
+                  setRatingInput("");
+                }}
               >
                 Cancel
               </button>
@@ -654,15 +973,28 @@ function App() {
       )}
 
       {isAddModalOpen && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="add-show-modal">
+            <button
+              className="close-button"
+              onClick={() => {
+                setIsAddModalOpen(false);
+                setTmdbResults([]);
+                setSelectedTMDBShow(null);
+              }}
+            >
+              x
+            </button>
             <h2>Add TV Show</h2>
+            <p className="modal-subtext">
+              Admin catalog imports become available for user lists and recommendations.
+            </p>
 
             <div className="tmdb-search-row">
               <input
                 type="text"
                 value={newShowTitle}
-                onChange={(e) => setNewShowTitle(e.target.value)}
+                onChange={(event) => setNewShowTitle(event.target.value)}
                 placeholder="Search TV show..."
                 className="rating-input"
               />
@@ -683,9 +1015,7 @@ function App() {
                   key={show.tmdbId}
                   onClick={() => setSelectedTMDBShow(show)}
                 >
-                  {show.imageUrl && (
-                    <img src={show.imageUrl} alt={show.title} />
-                  )}
+                  {show.imageUrl && <img src={show.imageUrl} alt={show.title} />}
 
                   <div>
                     <h3>{show.title}</h3>
@@ -721,13 +1051,15 @@ function App() {
       )}
 
       {detailsShow && (
-        <div className="modal-overlay" onClick={() => setDetailsShow(null)}>
-          <div className="details-modal" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="close-button"
-              onClick={() => setDetailsShow(null)}
-            >
-              ×
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setDetailsShow(null)}
+        >
+          <div className="details-modal" onClick={(event) => event.stopPropagation()}>
+            <button className="close-button" onClick={() => setDetailsShow(null)}>
+              x
             </button>
 
             <img
@@ -738,114 +1070,59 @@ function App() {
 
             <div className="details-content">
               <h2>{detailsShow.title}</h2>
-
               <p>{detailsShow.genres.join(", ")}</p>
-
               <p>Year: {detailsShow.year}</p>
 
               {detailsShow.overview && <p>{detailsShow.overview}</p>}
 
               {detailsShow.isAISuggestion ? (
                 <>
-                  <p className="score">
-                    Match Score: {detailsShow.recommendationScore}%
-                  </p>
-
-                  {detailsShow.scoreBreakdown && (
-                    <p className="score-breakdown">
-                      Taste: {detailsShow.scoreBreakdown.genreSimilarity}% ·
-                      Category Preference:{" "}
-                      {detailsShow.scoreBreakdown.categoryPreference}% · TMDB:{" "}
-                      {detailsShow.scoreBreakdown.tmdbRating}% · Popularity:{" "}
-                      {detailsShow.scoreBreakdown.popularity}% · Year Match:{" "}
-                      {detailsShow.scoreBreakdown.yearSimilarity}%
-                    </p>
-                  )}
-
-                  {detailsShow.similarWatchedShows?.length > 0 && (
-                    <p className="similar-text">
-                      Because you liked{" "}
-                      {detailsShow.similarWatchedShows
-                        .map(
-                          (similarShow) =>
-                            `${similarShow.title} (${Math.round(
-                              similarShow.similarity * 100,
-                            )}%)`,
-                        )
-                        .join(", ")}
-                    </p>
-                  )}
+                  <p className="score">Match Score: {detailsShow.matchScore}%</p>
 
                   <div className="details-actions">
                     <button
                       className="watch-button"
-                      onClick={() =>
-                        requireAdmin(() => importTVShow(detailsShow.tmdbId))
-                      }
+                      onClick={() => addSuggestionToLibrary(detailsShow, "want")}
                     >
-                      Add to Want to Watch
+                      Move to Want to Watch
+                    </button>
+
+                    <button
+                      className="secondary-button"
+                      onClick={() => addSuggestionToLibrary(detailsShow, "watching")}
+                    >
+                      Start Watching
                     </button>
 
                     <button
                       className="danger-button"
                       onClick={() =>
-                        requireAdmin(() =>
-                          ignoreSuggestion(
-                            detailsShow.tmdbId,
-                            detailsShow.title,
-                          ),
-                        )
+                        ignoreSuggestion(detailsShow.tmdbId, detailsShow.title)
                       }
                     >
                       Not Interested
                     </button>
                   </div>
                 </>
-              ) : detailsShow.watched ? (
-                <>
-                  <p className="rating">
-                    Your Rating: ⭐ {detailsShow.userRating}
-                  </p>
-
-                  <div className="details-actions">
-                    <button
-                      className="secondary-button"
-                      onClick={() =>
-                        requireAdmin(() => {
-                          setDetailsShow(null);
-                          moveToWantToWatch(detailsShow._id);
-                        })
-                      }
-                    >
-                      Move to Want to Watch
-                    </button>
-
-                    <button
-                      className="danger-button"
-                      onClick={() =>
-                        requireAdmin(() => {
-                          setDetailsShow(null);
-                          setShowToDelete(detailsShow);
-                        })
-                      }
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </>
               ) : (
                 <>
-                  <p className="score">
-                    Match Score: {detailsShow.recommendationScore}%
-                  </p>
+                  {detailsShow.status === "watched" ? (
+                    <p className="rating">Your Rating: {detailsShow.userRating}</p>
+                  ) : detailsShow.status === "watching" ? (
+                    <p className="score">Currently Watching</p>
+                  ) : (
+                    <p className="score">
+                      Match Score: {detailsShow.recommendationScore}%
+                    </p>
+                  )}
 
                   {detailsShow.scoreBreakdown && (
                     <p className="score-breakdown">
-                      Taste: {detailsShow.scoreBreakdown.genreSimilarity}% ·
+                      Taste: {detailsShow.scoreBreakdown.genreSimilarity}% -
                       Category Preference:{" "}
-                      {detailsShow.scoreBreakdown.categoryPreference}% · TMDB:{" "}
-                      {detailsShow.scoreBreakdown.tmdbRating}% · Popularity:{" "}
-                      {detailsShow.scoreBreakdown.popularity}% · Year Match:{" "}
+                      {detailsShow.scoreBreakdown.categoryPreference}% - TMDB:{" "}
+                      {detailsShow.scoreBreakdown.tmdbRating}% - Popularity:{" "}
+                      {detailsShow.scoreBreakdown.popularity}% - Year Match:{" "}
                       {detailsShow.scoreBreakdown.yearSimilarity}%
                     </p>
                   )}
@@ -865,29 +1142,19 @@ function App() {
                   )}
 
                   <div className="details-actions">
-                    <button
-                      className="watch-button"
-                      onClick={() =>
-                        requireAdmin(() => {
-                          setDetailsShow(null);
-                          openRatingModal(detailsShow);
-                        })
-                      }
-                    >
-                      Mark as Watched
-                    </button>
+                    {renderShowActions(detailsShow)}
 
-                    <button
-                      className="danger-button"
-                      onClick={() =>
-                        requireAdmin(() => {
+                    {isAdmin && (
+                      <button
+                        className="danger-button"
+                        onClick={() => {
                           setDetailsShow(null);
                           setShowToDelete(detailsShow);
-                        })
-                      }
-                    >
-                      Delete
-                    </button>
+                        }}
+                      >
+                        Delete from Catalog
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -895,12 +1162,12 @@ function App() {
           </div>
         </div>
       )}
+
       {showToDelete && (
-        <div className="modal-overlay">
+        <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-modal">
             <h2>Delete "{showToDelete.title}"?</h2>
-
-            <p>This will permanently remove it from your TV show list.</p>
+            <p>This permanently removes it from the shared TV show catalog.</p>
 
             <div className="modal-buttons">
               <button
@@ -921,39 +1188,103 @@ function App() {
         </div>
       )}
 
-      {isLoginModalOpen && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <h2>Admin Login</h2>
+      {authModal && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="confirm-modal auth-modal">
+            <button className="close-button" onClick={() => setAuthModal(null)}>
+              x
+            </button>
+
+            <h2>
+              {authModal === "signup"
+                ? "Create Account"
+                : authModal === "admin"
+                  ? "Admin Login"
+                  : "Login"}
+            </h2>
+
+            <p className="modal-subtext">
+              {authModal === "signup"
+                ? "Create a private profile for your watched and watch-list data."
+                : "Access your private TV show lists and recommendations."}
+            </p>
+
+            {authModal === "signup" && (
+              <input
+                type="text"
+                placeholder="Name"
+                value={authForm.name}
+                onChange={(event) =>
+                  setAuthForm((previousForm) => ({
+                    ...previousForm,
+                    name: event.target.value,
+                  }))
+                }
+                className="rating-input"
+              />
+            )}
 
             <input
               type="email"
               placeholder="Email"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
+              value={authForm.email}
+              onChange={(event) =>
+                setAuthForm((previousForm) => ({
+                  ...previousForm,
+                  email: event.target.value,
+                }))
+              }
               className="rating-input"
             />
 
             <input
               type="password"
               placeholder="Password"
-              value={loginPassword}
-              onChange={(e) => setLoginPassword(e.target.value)}
+              value={authForm.password}
+              onChange={(event) =>
+                setAuthForm((previousForm) => ({
+                  ...previousForm,
+                  password: event.target.value,
+                }))
+              }
               className="rating-input"
             />
 
-            {loginError && <p className="error-message">{loginError}</p>}
+            {authError && <p className="error-message">{authError}</p>}
 
             <div className="modal-buttons">
-              <button
-                className="cancel-button"
-                onClick={() => setIsLoginModalOpen(false)}
-              >
+              <button className="cancel-button" onClick={() => setAuthModal(null)}>
                 Cancel
               </button>
 
-              <button className="save-button" onClick={loginAdmin}>
-                Login
+              <button className="save-button" disabled={authBusy} onClick={handleAuthSubmit}>
+                {authBusy ? "Please wait..." : authModal === "signup" ? "Sign Up" : "Login"}
+              </button>
+            </div>
+
+            {authModal !== "admin" && (
+              <button
+                className="link-button"
+                onClick={() => openAuthModal(authModal === "signup" ? "login" : "signup")}
+              >
+                {authModal === "signup"
+                  ? "Already have an account? Login"
+                  : "Need an account? Sign Up"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {notice && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className={`confirm-modal notice-modal ${notice.type}`}>
+            <h2>{notice.title}</h2>
+            <p>{notice.message}</p>
+
+            <div className="modal-buttons">
+              <button className="save-button" onClick={() => setNotice(null)}>
+                OK
               </button>
             </div>
           </div>

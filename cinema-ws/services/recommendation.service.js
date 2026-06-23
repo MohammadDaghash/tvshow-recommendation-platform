@@ -1,10 +1,16 @@
 const TVShow = require("../models/TVShow");
+const UserShow = require("../models/UserShow");
 
 const {
   MAJOR_CATEGORIES,
   createGenreVector,
   cosineSimilarity,
 } = require("./featureEngineering.service");
+
+const {
+  decorateShowsWithCatalogState,
+  decorateShowsWithUserState,
+} = require("./userLibrary.service");
 
 const normalizeValue = (value, maxValue) => {
   if (!value || !maxValue) return 0;
@@ -166,21 +172,27 @@ const findSimilarWatchedShows = (candidateShow, watchedShows) => {
     .slice(0, 3);
 };
 
-const getRecommendations = async () => {
+const getRecommendations = async (userId) => {
   const tvShows = await TVShow.find();
 
   if (tvShows.length === 0) return [];
 
-  const watchedShows = tvShows.filter((tvShow) => tvShow.watched === true);
+  const decoratedTVShows = userId
+    ? decorateShowsWithUserState(tvShows, await UserShow.find({ user: userId }))
+    : decorateShowsWithCatalogState(tvShows);
+
+  const watchedShows = decoratedTVShows.filter(
+    (tvShow) => tvShow.status === "watched",
+  );
 
   const preferenceVector = createPreferenceVector(watchedShows);
   const averageWatchedYear = calculateAverageWatchedYear(watchedShows);
 
   const maxPopularity = Math.max(
-    ...tvShows.map((tvShow) => tvShow.popularity || 0),
+    ...decoratedTVShows.map((tvShow) => tvShow.popularity || 0),
   );
 
-  const scoredTVShows = tvShows.map((tvShow) => {
+  const scoredTVShows = decoratedTVShows.map((tvShow) => {
     const scores = calculateRecommendationScore(
       tvShow,
       preferenceVector,
@@ -190,12 +202,12 @@ const getRecommendations = async () => {
     );
 
     const similarWatchedShows =
-      tvShow.watched === false
+      tvShow.status !== "watched"
         ? findSimilarWatchedShows(tvShow, watchedShows)
         : [];
 
     return {
-      ...tvShow.toObject(),
+      ...tvShow,
       recommendationScore: scores.recommendationScore,
       similarity: scores.similarity,
       scoreBreakdown: scores.scoreBreakdown,

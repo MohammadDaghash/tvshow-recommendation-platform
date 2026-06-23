@@ -43,6 +43,10 @@ body {
   overflow-x: hidden;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 body::before {
   position: fixed;
   inset: 0;
@@ -284,8 +288,22 @@ h1 {
 .admin-bar {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.session-pill {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 15px;
+  border: 1px solid rgba(234, 211, 138, 0.24);
+  border-radius: 999px;
+  background: rgba(234, 211, 138, 0.08);
+  color: var(--cinema-soft);
+  font-weight: 800;
 }
 
 .content-shell {
@@ -353,11 +371,25 @@ h1 {
 }
 
 .tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
   padding: 10px 18px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
     rgba(18, 23, 34, 0.86);
   color: var(--cinema-soft);
+}
+
+.page-count {
+  min-width: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .tab:hover,
@@ -652,6 +684,63 @@ h1 {
   font-weight: 900;
 }
 
+.show-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 20px;
+}
+
+.show-grid .tv-card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.card-actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.compact-action {
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 42px 22px;
+  border: 1px solid var(--cinema-border);
+  border-radius: var(--cinema-radius);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 42%),
+    rgba(12, 16, 26, 0.62);
+  box-shadow: var(--cinema-shadow-soft);
+  text-align: center;
+}
+
+.empty-state h3 {
+  margin: 0;
+  color: var(--cinema-text);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.empty-state p,
+.modal-subtext {
+  max-width: 560px;
+  margin: 0;
+  color: var(--cinema-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -662,6 +751,8 @@ h1 {
   padding: 22px;
   background: rgba(2, 4, 9, 0.74);
   backdrop-filter: blur(18px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: overlay-fade-in 180ms ease both;
 }
 
@@ -685,6 +776,18 @@ h1 {
   text-align: center;
 }
 
+.auth-modal {
+  position: relative;
+}
+
+.notice-modal.success {
+  border-color: rgba(120, 226, 194, 0.36);
+}
+
+.notice-modal.error {
+  border-color: rgba(248, 113, 113, 0.46);
+}
+
 .add-show-modal {
   width: min(100%, 720px);
   max-height: 84vh;
@@ -696,7 +799,7 @@ h1 {
 .rating-modal h2,
 .add-show-modal h2,
 .confirm-modal h2 {
-  margin: 0 0 20px;
+  margin: 0 0 12px;
   color: var(--cinema-text);
   font-size: 25px;
   line-height: 1.2;
@@ -707,6 +810,33 @@ h1 {
   width: 100%;
   padding: 14px;
   margin-bottom: 18px;
+}
+
+.modal-subtext {
+  margin: 0 auto 20px;
+}
+
+.error-message {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  border-radius: var(--cinema-radius);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca !important;
+  font-size: 14px;
+}
+
+.link-button {
+  margin-top: 16px;
+  border: 0;
+  background: transparent;
+  color: var(--cinema-blue);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.link-button:hover {
+  color: var(--cinema-text);
 }
 
 .modal-buttons,
@@ -867,12 +997,10 @@ h1 {
 @keyframes app-fade-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -1105,5 +1233,44 @@ h1 {
 
   .poster-frame img {
     height: 278px;
+  }
+}
+
+.show-grid .tv-card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+@media (max-width: 640px) {
+  .show-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .show-grid .poster-frame img {
+    height: 360px;
+  }
+
+  .card-actions .compact-action {
+    width: auto;
+    flex: 1 1 130px;
+  }
+
+  .modal-overlay {
+    padding: 14px;
+  }
+
+  .details-actions .compact-action {
+    width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .show-grid .poster-frame img {
+    height: 310px;
+  }
+
+  .card-actions .compact-action {
+    flex-basis: 100%;
   }
 }
