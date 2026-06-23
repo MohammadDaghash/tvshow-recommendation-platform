@@ -43,7 +43,7 @@ const upsertUserShowStatus = async ({ userId, tvShowId, status, userRating }) =>
     },
     update,
     {
-      new: true,
+      returnDocument: "after",
       setDefaultsOnInsert: true,
       upsert: true,
     },
@@ -152,7 +152,7 @@ const addTMDBToLibrary = async (req, res) => {
         recommendationScore: 0,
       },
       {
-        new: true,
+        returnDocument: "after",
         setDefaultsOnInsert: true,
         upsert: true,
       },

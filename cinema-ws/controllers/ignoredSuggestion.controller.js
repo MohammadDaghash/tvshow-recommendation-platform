@@ -34,7 +34,10 @@ const ignoreSuggestion = async (req, res) => {
         tmdbId,
         title,
       },
-      { upsert: true, new: true },
+      {
+        returnDocument: "after",
+        upsert: true,
+      },
     );
 
     res.status(201).json(ignoredSuggestion);

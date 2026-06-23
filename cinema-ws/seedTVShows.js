@@ -572,8 +572,8 @@ const seedTVShows = async () => {
         { title: tvShowData.title },
         { $set: tvShowData },
         {
+          returnDocument: "after",
           upsert: true,
-          new: true,
           setDefaultsOnInsert: true,
         },
       );
