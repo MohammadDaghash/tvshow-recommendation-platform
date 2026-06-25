@@ -10,6 +10,7 @@ import {
   groupShowsByCategory,
   shouldUsePublicDataset,
 } from "./displayLibrary";
+import { getLeadCarouselConfig } from "./pageLayout";
 import "./App.css";
 
 const SESSION_STORAGE_KEY = "tvshowUserSession";
@@ -343,6 +344,12 @@ function App() {
   });
 
   const groupedShows = groupShowsByCategory(filteredShows, selectedGenre);
+  const leadCarouselShows =
+    activePage === "ai" ? visibleAISuggestions : filteredShows;
+  const leadCarouselConfig = getLeadCarouselConfig(
+    activePage,
+    leadCarouselShows,
+  );
 
   const pageCounts = {
     watched: watchedShows.length,
@@ -631,7 +638,9 @@ function App() {
       });
 
       await parseJSONResponse(response);
-      setIgnoredSuggestionIds((previousIds) => [...previousIds, tmdbId]);
+      setIgnoredSuggestionIds((previousIds) =>
+        previousIds.includes(tmdbId) ? previousIds : [...previousIds, tmdbId],
+      );
       await refreshMLSuggestions();
       setDetailsShow(null);
       showNotice("success", "Suggestion hidden", `${title} will stay hidden.`);
@@ -716,35 +725,49 @@ function App() {
     return getDisplayGenreList(genres).join(", ");
   };
 
-  const renderShowActions = (show) => {
-    if (isDemoMode) {
-      return (
-        <button className="watch-button compact-action" onClick={promptForPrivateList}>
-          Sign in to use this
-        </button>
-      );
-    }
+  const renderActionButton = ({ label, className, onClick, disabled = false }) => (
+    <button
+      className={`${className} compact-action`}
+      disabled={disabled}
+      onClick={isDemoMode ? promptForPrivateList : onClick}
+    >
+      {label}
+    </button>
+  );
 
+  const renderShowActions = (show) => {
     if (isAdminCatalogMode) {
-      return (
-        <button
-          className="danger-button compact-action"
-          onClick={() => requestCatalogDelete(show)}
-        >
-          Delete Catalog
-        </button>
-      );
+      return renderActionButton({
+        label: "Delete Catalog",
+        className: "danger-button",
+        onClick: () => requestCatalogDelete(show),
+      });
     }
 
     if (show.status === "watched") {
       return (
         <>
-          <button className="secondary-button compact-action" onClick={() => openRatingModal(show)}>
-            Edit Rating
-          </button>
-          <button className="danger-button compact-action" onClick={() => removeFromLibrary(show)}>
-            Remove
-          </button>
+          {renderActionButton({
+            label: "Delete",
+            className: "danger-button",
+            onClick: () => removeFromLibrary(show),
+          })}
+          {renderActionButton({
+            label: "Move to Currently Watching",
+            className: "watch-button",
+            onClick: () =>
+              updateLibraryStatus(show, "watching", {
+                successMessage: "Moved to Currently Watching.",
+              }),
+          })}
+          {renderActionButton({
+            label: "Move to Want to Watch",
+            className: "secondary-button",
+            onClick: () =>
+              updateLibraryStatus(show, "want", {
+                successMessage: "Moved to Want to Watch.",
+              }),
+          })}
         </>
       );
     }
@@ -752,122 +775,104 @@ function App() {
     if (show.status === "watching") {
       return (
         <>
-          <button className="watch-button compact-action" onClick={() => openRatingModal(show)}>
-            Mark Watched
-          </button>
-          <button
-            className="secondary-button compact-action"
-            onClick={() =>
+          {renderActionButton({
+            label: "Delete",
+            className: "danger-button",
+            onClick: () => removeFromLibrary(show),
+          })}
+          {renderActionButton({
+            label: "Move to Want to Watch",
+            className: "secondary-button",
+            onClick: () =>
               updateLibraryStatus(show, "want", {
-                successMessage: "Moved back to Want to Watch.",
-              })
-            }
-          >
-            Move to Want
-          </button>
-          <button className="danger-button compact-action" onClick={() => removeFromLibrary(show)}>
-            Stop Watching
-          </button>
+                successMessage: "Moved to Want to Watch.",
+              }),
+          })}
+          {renderActionButton({
+            label: "Move to Watched",
+            className: "watch-button",
+            onClick: () => openRatingModal(show),
+          })}
         </>
       );
     }
 
     return (
       <>
-        <button
-          className="watch-button compact-action"
-          onClick={() =>
+        {renderActionButton({
+          label: "Delete",
+          className: "danger-button",
+          onClick: () => removeFromLibrary(show),
+        })}
+        {renderActionButton({
+          label: "Move to Currently Watching",
+          className: "watch-button",
+          onClick: () =>
             updateLibraryStatus(show, "watching", {
               successMessage: "Moved to Currently Watching.",
-            })
-          }
-        >
-          Start Watching
-        </button>
-        <button className="secondary-button compact-action" onClick={() => openRatingModal(show)}>
-          Mark Watched
-        </button>
-        <button className="danger-button compact-action" onClick={() => removeFromLibrary(show)}>
-          Remove
-        </button>
+            }),
+        })}
+        {renderActionButton({
+          label: "Move to Watched",
+          className: "secondary-button",
+          onClick: () => openRatingModal(show),
+        })}
       </>
     );
   };
 
   const renderSuggestionActions = (show) => {
     if (isAdmin) {
-      return (
-        <>
-          <button
-            className="watch-button compact-action"
-            disabled={isImporting}
-            onClick={() => importTVShow(show.tmdbId)}
-          >
-            {isImporting ? "Importing..." : "Add to Catalog"}
-          </button>
-          <button
-            className="secondary-button compact-action"
-            onClick={() =>
-              setDetailsShow({
-                ...show,
-                isAISuggestion: true,
-              })
-            }
-          >
-            View Details
-          </button>
-        </>
-      );
-    }
-
-    const runSuggestionAction = (action) => {
-      if (isDemoMode) {
-        promptForPrivateList();
-        return;
-      }
-
-      action();
+      return renderActionButton({
+        label: isImporting ? "Importing..." : "Add to Catalog",
+        className: "watch-button",
+        disabled: isImporting,
+        onClick: () => importTVShow(show.tmdbId),
+      });
     };
 
     return (
       <>
-        <button
-          className="danger-button compact-action"
-          onClick={() =>
-            runSuggestionAction(() =>
-              ignoreSuggestion(show.tmdbId, show.title),
-            )
-          }
-        >
-          Not Interested
-        </button>
-        <button
-          className="secondary-button compact-action"
-          onClick={() =>
-            runSuggestionAction(() => addSuggestionToLibrary(show, "want"))
-          }
-        >
-          Add to Want to Watch
-        </button>
-        <button
-          className="secondary-button compact-action"
-          onClick={() =>
-            runSuggestionAction(() => addSuggestionToLibrary(show, "watching"))
-          }
-        >
-          Add to Currently Watching
-        </button>
-        <button
-          className="watch-button compact-action"
-          onClick={() =>
-            runSuggestionAction(() => openSuggestionRatingModal(show))
-          }
-        >
-          Add to Watched
-        </button>
+        {renderActionButton({
+          label: "Not Interested",
+          className: "danger-button",
+          onClick: () => ignoreSuggestion(show.tmdbId, show.title),
+        })}
+        {renderActionButton({
+          label: "Add to Want to Watch",
+          className: "secondary-button",
+          onClick: () => addSuggestionToLibrary(show, "want"),
+        })}
+        {renderActionButton({
+          label: "Add to Currently Watching",
+          className: "secondary-button",
+          onClick: () => addSuggestionToLibrary(show, "watching"),
+        })}
+        {renderActionButton({
+          label: "Add to Watched",
+          className: "watch-button",
+          onClick: () => openSuggestionRatingModal(show),
+        })}
       </>
     );
   };
+
+  const renderActionPanel = (actions) => (
+    <div className="action-panel">
+      <div className="action-panel-header">
+        <p>Actions</p>
+        {isDemoMode && <span>Demo mode</span>}
+      </div>
+
+      {isDemoMode && (
+        <p className="action-panel-hint">
+          Sign in to use these actions with your private list.
+        </p>
+      )}
+
+      <div className="details-actions">{actions}</div>
+    </div>
+  );
 
   const renderCard = (show) => (
     <article className="tv-card" key={show._id} onClick={() => setDetailsShow(show)}>
@@ -895,9 +900,6 @@ function App() {
           <p className="score">Match Score: {show.recommendationScore}%</p>
         )}
 
-        <div className="card-actions" onClick={(event) => event.stopPropagation()}>
-          {renderShowActions(show)}
-        </div>
       </div>
     </article>
   );
@@ -924,12 +926,6 @@ function App() {
         <p className="year-line">Year: {show.year}</p>
         <p className="score">Match Score: {show.matchScore}%</p>
 
-        <div
-          className="card-actions ai-card-actions"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {renderSuggestionActions(show)}
-        </div>
       </div>
     </article>
   );
@@ -1071,18 +1067,23 @@ function App() {
             </div>
           )}
 
-          {activePage === "ai" && visibleAISuggestions.length > 0 && (
-            <section className="top-ai-panel" aria-label="Top AI Suggestions">
-              <div className="genre-group-header top-ai-header">
+          {leadCarouselConfig && (
+            <section
+              className="lead-carousel-panel"
+              aria-label={leadCarouselConfig.ariaLabel}
+            >
+              <div className="genre-group-header lead-carousel-header">
                 <div>
-                  <p className="top-ai-kicker">Recommendation Engine</p>
-                  <h3>Top AI Suggestions</h3>
+                  <p className="lead-carousel-kicker">
+                    {leadCarouselConfig.kicker}
+                  </p>
+                  <h3>{leadCarouselConfig.title}</h3>
                 </div>
-                <span>{visibleAISuggestions.length} picks</span>
+                <span>{leadCarouselConfig.countLabel}</span>
               </div>
 
-              <div className="carousel-row top-ai-carousel">
-                {visibleAISuggestions.map(renderSuggestionCard)}
+              <div className="carousel-row lead-carousel-row">
+                {leadCarouselShows.map(renderPageCard)}
               </div>
             </section>
           )}
@@ -1264,9 +1265,7 @@ function App() {
                 <>
                   <p className="score">Match Score: {detailsShow.matchScore}%</p>
 
-                  <div className="details-actions">
-                    {renderSuggestionActions(detailsShow)}
-                  </div>
+                  {renderActionPanel(renderSuggestionActions(detailsShow))}
                 </>
               ) : (
                 <>
@@ -1305,21 +1304,23 @@ function App() {
                     </p>
                   )}
 
-                  <div className="details-actions">
-                    {renderShowActions(detailsShow)}
+                  {renderActionPanel(
+                    <>
+                      {renderShowActions(detailsShow)}
 
-                    {isAdmin && !isAdminCatalogMode && (
-                      <button
-                        className="danger-button"
-                        onClick={() => {
-                          setDetailsShow(null);
-                          setShowToDelete(detailsShow);
-                        }}
-                      >
-                        Delete from Catalog
-                      </button>
-                    )}
-                  </div>
+                      {isAdmin && !isAdminCatalogMode && (
+                        <button
+                          className="danger-button compact-action"
+                          onClick={() => {
+                            setDetailsShow(null);
+                            setShowToDelete(detailsShow);
+                          }}
+                        >
+                          Delete from Catalog
+                        </button>
+                      )}
+                    </>,
+                  )}
                 </>
               )}
             </div>
