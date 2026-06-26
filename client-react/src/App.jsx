@@ -3,7 +3,10 @@ import { apiUrl } from "./api";
 import { getTopAISuggestions } from "./aiSuggestions";
 import { buildDemoLibrary } from "./demoLibrary";
 import { getLibraryCardStatusText } from "./cardPresentation";
-import { shouldShowIgnoreSuggestionSuccess } from "./suggestionFeedback";
+import {
+  getSuggestionActionLabels,
+  shouldShowIgnoreSuggestionSuccess,
+} from "./suggestionFeedback";
 import {
   getDisplayGenreList,
   getFilterGenres,
@@ -730,8 +733,15 @@ function App() {
     return getDisplayGenreList(genres).join(", ");
   };
 
-  const renderActionButton = ({ label, className, onClick, disabled = false }) => (
+  const renderActionButton = ({
+    label,
+    className,
+    onClick,
+    disabled = false,
+    actionKey = label,
+  }) => (
     <button
+      key={actionKey}
       className={`${className} compact-action`}
       disabled={disabled}
       onClick={isDemoMode ? promptForPrivateList : onClick}
@@ -826,41 +836,45 @@ function App() {
     );
   };
 
-  const renderSuggestionActions = (show) => {
-    if (isAdmin) {
+  const renderSuggestionAction = (show, label) => {
+    if (label === "Not Interested") {
       return renderActionButton({
-        label: isImporting ? "Importing..." : "Add to Catalog",
-        className: "watch-button",
-        disabled: isImporting,
-        onClick: () => importTVShow(show.tmdbId),
+        label,
+        className: "danger-button",
+        onClick: () => ignoreSuggestion(show.tmdbId, show.title),
       });
-    };
+    }
 
-    return (
-      <>
-        {renderActionButton({
-          label: "Not Interested",
-          className: "danger-button",
-          onClick: () => ignoreSuggestion(show.tmdbId, show.title),
-        })}
-        {renderActionButton({
-          label: "Add to Want to Watch",
-          className: "secondary-button",
-          onClick: () => addSuggestionToLibrary(show, "want"),
-        })}
-        {renderActionButton({
-          label: "Add to Currently Watching",
-          className: "secondary-button",
-          onClick: () => addSuggestionToLibrary(show, "watching"),
-        })}
-        {renderActionButton({
-          label: "Add to Watched",
-          className: "watch-button",
-          onClick: () => openSuggestionRatingModal(show),
-        })}
-      </>
-    );
+    if (label === "Add to Want to Watch") {
+      return renderActionButton({
+        label,
+        className: "secondary-button",
+        onClick: () => addSuggestionToLibrary(show, "want"),
+      });
+    }
+
+    if (label === "Add to Currently Watching") {
+      return renderActionButton({
+        label,
+        className: "secondary-button",
+        onClick: () => addSuggestionToLibrary(show, "watching"),
+      });
+    }
+
+    return renderActionButton({
+      label,
+      className: "watch-button",
+      onClick: () => openSuggestionRatingModal(show),
+    });
   };
+
+  const renderSuggestionActions = (show) => (
+    <>
+      {getSuggestionActionLabels(currentUser).map((label) =>
+        renderSuggestionAction(show, label),
+      )}
+    </>
+  );
 
   const renderActionPanel = (actions) => (
     <div className="action-panel">
