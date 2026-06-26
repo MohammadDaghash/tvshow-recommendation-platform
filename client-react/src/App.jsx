@@ -932,13 +932,6 @@ function App() {
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />
         <span className="card-badge score">{show.matchScore}%</span>
-        <button
-          className="quick-ignore-button"
-          type="button"
-          onClick={(event) => handleQuickIgnoreSuggestion(event, show)}
-        >
-          Not Interested
-        </button>
       </div>
 
       <div className="tv-card-body">
@@ -946,6 +939,13 @@ function App() {
         <p className="genre-line">{formatDisplayGenres(show.genres)}</p>
         <p className="year-line">Year: {show.year}</p>
         <p className="score">Match Score: {show.matchScore}%</p>
+        <button
+          className="quick-ignore-button"
+          type="button"
+          onClick={(event) => handleQuickIgnoreSuggestion(event, show)}
+        >
+          Not Interested
+        </button>
 
       </div>
     </article>
