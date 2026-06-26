@@ -3,6 +3,7 @@ import { apiUrl } from "./api";
 import { getTopAISuggestions } from "./aiSuggestions";
 import { buildDemoLibrary } from "./demoLibrary";
 import { getLibraryCardStatusText } from "./cardPresentation";
+import { shouldShowIgnoreSuggestionSuccess } from "./suggestionFeedback";
 import {
   getDisplayGenreList,
   getFilterGenres,
@@ -623,7 +624,7 @@ function App() {
     }
   };
 
-  const ignoreSuggestion = async (tmdbId, title) => {
+  const ignoreSuggestion = async (tmdbId, title, options = {}) => {
     if (!requireUser()) return;
 
     try {
@@ -644,7 +645,10 @@ function App() {
       );
       await refreshMLSuggestions();
       setDetailsShow(null);
-      showNotice("success", "Suggestion hidden", `${title} will stay hidden.`);
+
+      if (shouldShowIgnoreSuggestionSuccess(options)) {
+        showNotice("success", "Suggestion hidden", `${title} will stay hidden.`);
+      }
     } catch (error) {
       showNotice("error", "Could not hide suggestion", error.message);
     }
@@ -883,7 +887,7 @@ function App() {
       return;
     }
 
-    ignoreSuggestion(show.tmdbId, show.title);
+    ignoreSuggestion(show.tmdbId, show.title, { silent: true });
   };
 
   const renderCard = (show) => {
