@@ -2,10 +2,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
 import { getTopAISuggestions } from "./aiSuggestions";
 import { buildDemoLibrary } from "./demoLibrary";
+import { getLibraryActionLabels } from "./cardPresentation";
 import {
-  getLibraryActionLabels,
-  getLibraryCardStatusText,
-} from "./cardPresentation";
+  AddShowModal,
+  AuthModal,
+  ConfirmDeleteModal,
+  DetailsModal,
+  NoticeModal,
+  RatingModal,
+} from "./components/AppModals";
+import { AppContent } from "./components/AppContent";
+import { LoadingScreen } from "./components/LoadingScreen";
+import { LibraryCard, SuggestionCard } from "./components/ShowCards";
 import {
   getSuggestionActionLabels,
   shouldShowIgnoreSuggestionSuccess,
@@ -46,31 +54,6 @@ const pageConfig = {
     emptyText: "Rate more watched shows or try again after adding more to your list.",
   },
 };
-
-function LoadingScreen({ error, onRetry }) {
-  return (
-    <main className="initial-state-screen">
-      <section className="initial-state-card">
-        {error ? (
-          <>
-            <div className="initial-state-icon error-icon">!</div>
-            <h1>Unable to load TV show data</h1>
-            <p>{error}</p>
-            <button className="retry-button" onClick={onRetry}>
-              Retry
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="loading-spinner" aria-hidden="true" />
-            <h1>Loading TV show data</h1>
-            <p>Connecting to database...</p>
-          </>
-        )}
-      </section>
-    </main>
-  );
-}
 
 function readStoredSession() {
   try {
@@ -844,23 +827,6 @@ function App() {
     </>
   );
 
-  const renderActionPanel = (actions) => (
-    <div className="action-panel">
-      <div className="action-panel-header">
-        <p>Actions</p>
-        {isDemoMode && <span>Demo mode</span>}
-      </div>
-
-      {isDemoMode && (
-        <p className="action-panel-hint">
-          Sign in to use these actions with your private list.
-        </p>
-      )}
-
-      <div className="details-actions">{actions}</div>
-    </div>
-  );
-
   const handleQuickIgnoreSuggestion = (event, show) => {
     event.stopPropagation();
 
@@ -872,69 +838,23 @@ function App() {
     ignoreSuggestion(show.tmdbId, show.title, { silent: true });
   };
 
-  const renderCard = (show) => {
-    const cardStatusText = getLibraryCardStatusText(show);
-
-    return (
-      <article className="tv-card" key={show._id} onClick={() => setDetailsShow(show)}>
-        <div className="poster-frame">
-          <img src={show.imageUrl} alt={show.title} />
-          <span className={show.status === "watched" ? "card-badge rating" : "card-badge score"}>
-            {show.status === "watched"
-              ? `${show.userRating}/10`
-              : show.status === "watching"
-                ? "Watching"
-                : `${show.recommendationScore}%`}
-          </span>
-        </div>
-
-        <div className="tv-card-body">
-          <h3>{show.title}</h3>
-          <p className="genre-line">{formatDisplayGenres(show.genres)}</p>
-          <p className="year-line">Year: {show.year}</p>
-
-          {cardStatusText && (
-            <p className={show.status === "watched" ? "rating" : "score"}>
-              {cardStatusText}
-            </p>
-          )}
-
-        </div>
-      </article>
-    );
-  };
+  const renderCard = (show) => (
+    <LibraryCard
+      formatGenres={formatDisplayGenres}
+      key={show._id}
+      onSelect={setDetailsShow}
+      show={show}
+    />
+  );
 
   const renderSuggestionCard = (show) => (
-    <article
-      className="tv-card ai-card"
+    <SuggestionCard
+      formatGenres={formatDisplayGenres}
       key={show.tmdbId || show.title}
-      onClick={() =>
-        setDetailsShow({
-          ...show,
-          isAISuggestion: true,
-        })
-      }
-    >
-      <div className="poster-frame">
-        <img src={show.imageUrl} alt={show.title} />
-        <span className="card-badge score">{show.matchScore}%</span>
-      </div>
-
-      <div className="tv-card-body">
-        <h3>{show.title}</h3>
-        <p className="genre-line">{formatDisplayGenres(show.genres)}</p>
-        <p className="year-line">Year: {show.year}</p>
-        <p className="score">Match Score: {show.matchScore}%</p>
-        <button
-          className="quick-ignore-button"
-          type="button"
-          onClick={(event) => handleQuickIgnoreSuggestion(event, show)}
-        >
-          Not Interested
-        </button>
-
-      </div>
-    </article>
+      onQuickIgnore={handleQuickIgnoreSuggestion}
+      onSelect={setDetailsShow}
+      show={show}
+    />
   );
 
   const renderPageCard = activePage === "ai" ? renderSuggestionCard : renderCard;
@@ -950,518 +870,86 @@ function App() {
 
   return (
     <div className="app">
-      <header className="hero-panel">
-        <div className="hero-content">
-          <p className="hero-kicker">Streaming Taste Engine</p>
-          <h1>TV Show Recommendation Platform</h1>
-          {isDemoMode && (
-            <p className="demo-mode-pill">
-              Demo mode - sign in to create your own private list
-            </p>
-          )}
+      <AppContent
+        activePage={activePage}
+        allGenres={allGenres}
+        currentUser={currentUser}
+        filteredShows={filteredShows}
+        groupedShows={groupedShows}
+        handlePageChange={handlePageChange}
+        isAdmin={isAdmin}
+        isDemoMode={isDemoMode}
+        leadCarouselConfig={leadCarouselConfig}
+        leadCarouselShows={leadCarouselShows}
+        logout={logout}
+        openAuthModal={openAuthModal}
+        pageConfig={pageConfig}
+        pageCounts={pageCounts}
+        requireAdmin={requireAdmin}
+        renderPageCard={renderPageCard}
+        searchTerm={searchTerm}
+        selectedGenre={selectedGenre}
+        setIsAddModalOpen={setIsAddModalOpen}
+        setSearchTerm={setSearchTerm}
+        setSelectedGenre={setSelectedGenre}
+        visibleAISuggestions={visibleAISuggestions}
+        wantShows={wantShows}
+        watchedShows={watchedShows}
+        watchingShows={watchingShows}
+      />
 
-          <div className="hero-stats" aria-label="TV show library stats">
-            <span>
-              <strong>{watchedShows.length}</strong>
-              Watched
-            </span>
-            <span>
-              <strong>{wantShows.length}</strong>
-              Watchlist
-            </span>
-            <span>
-              <strong>{watchingShows.length}</strong>
-              Watching
-            </span>
-            <span>
-              <strong>{visibleAISuggestions.length}</strong>
-              AI Picks
-            </span>
-          </div>
-        </div>
+      <RatingModal
+        ratingInput={ratingInput}
+        ratingTarget={ratingTarget}
+        setRatingInput={setRatingInput}
+        setRatingTarget={setRatingTarget}
+        submitRating={submitRating}
+      />
 
-        <div className="top-bar">
-          {currentUser ? (
-            <div className="auth-buttons">
-              <span className="session-pill">
-                {currentUser.name} {isAdmin ? "(Admin)" : ""}
-              </span>
-              <button className="secondary-button" onClick={logout}>
-                Log Out
-              </button>
-            </div>
-          ) : (
-            <div className="auth-buttons">
-              <button
-                className="secondary-button"
-                onClick={() => openAuthModal("login")}
-              >
-                Login
-              </button>
+      <AddShowModal
+        importTVShow={importTVShow}
+        isAddModalOpen={isAddModalOpen}
+        isImporting={isImporting}
+        newShowTitle={newShowTitle}
+        searchTMDBShows={searchTMDBShows}
+        selectedTMDBShow={selectedTMDBShow}
+        setIsAddModalOpen={setIsAddModalOpen}
+        setNewShowTitle={setNewShowTitle}
+        setSelectedTMDBShow={setSelectedTMDBShow}
+        setTmdbResults={setTmdbResults}
+        tmdbResults={tmdbResults}
+      />
 
-              <button
-                className="secondary-button"
-                onClick={() => openAuthModal("signup")}
-              >
-                Sign Up
-              </button>
+      <DetailsModal
+        detailsShow={detailsShow}
+        formatDisplayGenres={formatDisplayGenres}
+        isAdmin={isAdmin}
+        isAdminCatalogMode={isAdminCatalogMode}
+        isDemoMode={isDemoMode}
+        renderShowActions={renderShowActions}
+        renderSuggestionActions={renderSuggestionActions}
+        setDetailsShow={setDetailsShow}
+        setShowToDelete={setShowToDelete}
+      />
 
-              <button
-                className="secondary-button"
-                onClick={() => openAuthModal("admin")}
-              >
-                Admin Login
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <ConfirmDeleteModal
+        deleteTVShow={deleteTVShow}
+        setShowToDelete={setShowToDelete}
+        showToDelete={showToDelete}
+      />
 
-      <main className="content-shell">
-        <div className="control-panel">
-          <div className="tabs">
-            {Object.entries(pageConfig).map(([page, config]) => (
-              <button
-                className={activePage === page ? "tab active-tab" : "tab"}
-                key={page}
-                onClick={() => handlePageChange(page)}
-              >
-                {config.label}
-                <span className="page-count">{pageCounts[page]}</span>
-              </button>
-            ))}
+      <AuthModal
+        authBusy={authBusy}
+        authError={authError}
+        authForm={authForm}
+        authModal={authModal}
+        handleAuthSubmit={handleAuthSubmit}
+        openAuthModal={openAuthModal}
+        setAuthForm={setAuthForm}
+        setAuthModal={setAuthModal}
+      />
 
-            <button
-              className="add-show-button"
-              onClick={() => requireAdmin(() => setIsAddModalOpen(true))}
-            >
-              + Add TV Show
-            </button>
-          </div>
-
-          <div className="filters">
-            <input
-              type="text"
-              placeholder="Search TV shows..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="search-input"
-            />
-
-            <select
-              value={selectedGenre}
-              onChange={(event) => setSelectedGenre(event.target.value)}
-              className="genre-select"
-            >
-              {allGenres.map((genre) => (
-                <option value={genre} key={genre}>
-                  {genre}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <section className="show-section">
-          <h2 className="section-title">{pageConfig[activePage].label}</h2>
-          {isDemoMode && (
-            <div className="demo-banner">
-              <strong>Demo mode</strong>
-              <span>
-                These public cards show how the app works. Sign in to keep your
-                own watched, watchlist, and currently watching data private.
-              </span>
-            </div>
-          )}
-
-          {leadCarouselConfig && (
-            <section
-              className="lead-carousel-panel"
-              aria-label={leadCarouselConfig.ariaLabel}
-            >
-              <div className="genre-group-header lead-carousel-header">
-                <div>
-                  <p className="lead-carousel-kicker">
-                    {leadCarouselConfig.kicker}
-                  </p>
-                  <h3>{leadCarouselConfig.title}</h3>
-                </div>
-                <span>{leadCarouselConfig.countLabel}</span>
-              </div>
-
-              <div className="carousel-row lead-carousel-row">
-                {leadCarouselShows.map(renderPageCard)}
-              </div>
-            </section>
-          )}
-
-          {filteredShows.length === 0 ? (
-            <div className="empty-state">
-              <h3>{pageConfig[activePage].emptyTitle}</h3>
-              <p>{pageConfig[activePage].emptyText}</p>
-              {activePage !== "ai" && (
-                <button className="secondary-button" onClick={() => handlePageChange("ai")}>
-                  Browse AI Suggestions
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grouped-show-sections">
-              {groupedShows.map((group) => (
-                <section className="genre-group" key={group.category}>
-                  <div className="genre-group-header">
-                    <h3>{group.category}</h3>
-                    <span>
-                      {group.shows.length}{" "}
-                      {group.shows.length === 1 ? "show" : "shows"}
-                    </span>
-                  </div>
-
-                  <div className="carousel-row genre-carousel">
-                    {group.shows.map(renderPageCard)}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
-
-      {ratingTarget && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="rating-modal">
-            <h2>Rate "{ratingTarget.title}"</h2>
-            <p className="modal-subtext">
-              Your rating tunes future recommendations for this account.
-            </p>
-
-            <input
-              type="number"
-              min="0"
-              max="10"
-              step="0.1"
-              value={ratingInput}
-              onChange={(event) => setRatingInput(event.target.value)}
-              placeholder="Enter rating..."
-              className="rating-input"
-            />
-
-            <div className="modal-buttons">
-              <button
-                className="cancel-button"
-                onClick={() => {
-                  setRatingTarget(null);
-                  setRatingInput("");
-                }}
-              >
-                Cancel
-              </button>
-
-              <button className="save-button" onClick={submitRating}>
-                Save Rating
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isAddModalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="add-show-modal">
-            <button
-              className="close-button"
-              onClick={() => {
-                setIsAddModalOpen(false);
-                setTmdbResults([]);
-                setSelectedTMDBShow(null);
-              }}
-            >
-              x
-            </button>
-            <h2>Add TV Show</h2>
-            <p className="modal-subtext">
-              Admin catalog imports become available for user lists and recommendations.
-            </p>
-
-            <div className="tmdb-search-row">
-              <input
-                type="text"
-                value={newShowTitle}
-                onChange={(event) => setNewShowTitle(event.target.value)}
-                placeholder="Search TV show..."
-                className="rating-input"
-              />
-
-              <button className="save-button" onClick={searchTMDBShows}>
-                Search
-              </button>
-            </div>
-
-            <div className="tmdb-results">
-              {tmdbResults.map((show) => (
-                <div
-                  className={
-                    selectedTMDBShow?.tmdbId === show.tmdbId
-                      ? "tmdb-result selected-tmdb-result"
-                      : "tmdb-result"
-                  }
-                  key={show.tmdbId}
-                  onClick={() => setSelectedTMDBShow(show)}
-                >
-                  {show.imageUrl && <img src={show.imageUrl} alt={show.title} />}
-
-                  <div>
-                    <h3>{show.title}</h3>
-                    <p>{show.year || "Unknown year"}</p>
-                    <p>{show.overview || "No overview available."}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="modal-buttons">
-              <button
-                className="cancel-button"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setTmdbResults([]);
-                  setSelectedTMDBShow(null);
-                }}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="save-button"
-                disabled={!selectedTMDBShow || isImporting}
-                onClick={() => importTVShow(selectedTMDBShow.tmdbId)}
-              >
-                {isImporting ? "Importing..." : "Import Selected"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {detailsShow && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setDetailsShow(null)}
-        >
-          <div className="details-modal" onClick={(event) => event.stopPropagation()}>
-            <button className="close-button" onClick={() => setDetailsShow(null)}>
-              x
-            </button>
-
-            <img
-              src={detailsShow.imageUrl}
-              alt={detailsShow.title}
-              className="details-poster"
-            />
-
-            <div className="details-content">
-              <h2>{detailsShow.title}</h2>
-              <p>{formatDisplayGenres(detailsShow.genres)}</p>
-              <p>Year: {detailsShow.year}</p>
-
-              {detailsShow.overview && <p>{detailsShow.overview}</p>}
-
-              {detailsShow.isAISuggestion ? (
-                <>
-                  <p className="score">Match Score: {detailsShow.matchScore}%</p>
-
-                  {renderActionPanel(renderSuggestionActions(detailsShow))}
-                </>
-              ) : (
-                <>
-                  {detailsShow.status === "watched" ? (
-                    <p className="rating">Your Rating: {detailsShow.userRating}</p>
-                  ) : detailsShow.status === "watching" ? (
-                    <p className="score">Currently Watching</p>
-                  ) : (
-                    <p className="score">
-                      Match Score: {detailsShow.recommendationScore}%
-                    </p>
-                  )}
-
-                  {detailsShow.scoreBreakdown && (
-                    <p className="score-breakdown">
-                      Taste: {detailsShow.scoreBreakdown.genreSimilarity}% -
-                      Category Preference:{" "}
-                      {detailsShow.scoreBreakdown.categoryPreference}% - TMDB:{" "}
-                      {detailsShow.scoreBreakdown.tmdbRating}% - Popularity:{" "}
-                      {detailsShow.scoreBreakdown.popularity}% - Year Match:{" "}
-                      {detailsShow.scoreBreakdown.yearSimilarity}%
-                    </p>
-                  )}
-
-                  {detailsShow.similarWatchedShows?.length > 0 && (
-                    <p className="similar-text">
-                      Because you liked{" "}
-                      {detailsShow.similarWatchedShows
-                        .map(
-                          (similarShow) =>
-                            `${similarShow.title} (${Math.round(
-                              similarShow.similarity * 100,
-                            )}%)`,
-                        )
-                        .join(", ")}
-                    </p>
-                  )}
-
-                  {renderActionPanel(
-                    <>
-                      {renderShowActions(detailsShow)}
-
-                      {isAdmin && !isAdminCatalogMode && (
-                        <button
-                          className="danger-button compact-action"
-                          onClick={() => {
-                            setDetailsShow(null);
-                            setShowToDelete(detailsShow);
-                          }}
-                        >
-                          Delete from Catalog
-                        </button>
-                      )}
-                    </>,
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showToDelete && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="confirm-modal">
-            <h2>Delete "{showToDelete.title}"?</h2>
-            <p>This permanently removes it from the shared TV show catalog.</p>
-
-            <div className="modal-buttons">
-              <button
-                className="cancel-button"
-                onClick={() => setShowToDelete(null)}
-              >
-                Cancel
-              </button>
-
-              <button
-                className="danger-button"
-                onClick={() => deleteTVShow(showToDelete._id)}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {authModal && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="confirm-modal auth-modal">
-            <button className="close-button" onClick={() => setAuthModal(null)}>
-              x
-            </button>
-
-            <h2>
-              {authModal === "signup"
-                ? "Create Account"
-                : authModal === "admin"
-                  ? "Admin Login"
-                  : "Login"}
-            </h2>
-
-            <p className="modal-subtext">
-              {authModal === "signup"
-                ? "Create a private profile for your watched and watch-list data."
-                : "Access your private TV show lists and recommendations."}
-            </p>
-
-            {authModal === "signup" && (
-              <input
-                type="text"
-                placeholder="Name"
-                value={authForm.name}
-                onChange={(event) =>
-                  setAuthForm((previousForm) => ({
-                    ...previousForm,
-                    name: event.target.value,
-                  }))
-                }
-                className="rating-input"
-              />
-            )}
-
-            <input
-              type="email"
-              placeholder="Email"
-              value={authForm.email}
-              onChange={(event) =>
-                setAuthForm((previousForm) => ({
-                  ...previousForm,
-                  email: event.target.value,
-                }))
-              }
-              className="rating-input"
-            />
-
-            <input
-              type="password"
-              placeholder="Password"
-              value={authForm.password}
-              onChange={(event) =>
-                setAuthForm((previousForm) => ({
-                  ...previousForm,
-                  password: event.target.value,
-                }))
-              }
-              className="rating-input"
-            />
-
-            {authError && <p className="error-message">{authError}</p>}
-
-            <div className="modal-buttons">
-              <button className="cancel-button" onClick={() => setAuthModal(null)}>
-                Cancel
-              </button>
-
-              <button className="save-button" disabled={authBusy} onClick={handleAuthSubmit}>
-                {authBusy ? "Please wait..." : authModal === "signup" ? "Sign Up" : "Login"}
-              </button>
-            </div>
-
-            {authModal !== "admin" && (
-              <button
-                className="link-button"
-                onClick={() => openAuthModal(authModal === "signup" ? "login" : "signup")}
-              >
-                {authModal === "signup"
-                  ? "Already have an account? Login"
-                  : "Need an account? Sign Up"}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {notice && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className={`confirm-modal notice-modal ${notice.type}`}>
-            <h2>{notice.title}</h2>
-            <p>{notice.message}</p>
-
-            <div className="modal-buttons">
-              <button className="save-button" onClick={() => setNotice(null)}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <NoticeModal notice={notice} setNotice={setNotice} />
     </div>
   );
 }
