@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
 import { getTopAISuggestions } from "./aiSuggestions";
 import { buildDemoLibrary } from "./demoLibrary";
+import { getLibraryCardStatusText } from "./cardPresentation";
 import {
   getDisplayGenreList,
   getFilterGenres,
@@ -874,35 +875,48 @@ function App() {
     </div>
   );
 
-  const renderCard = (show) => (
-    <article className="tv-card" key={show._id} onClick={() => setDetailsShow(show)}>
-      <div className="poster-frame">
-        <img src={show.imageUrl} alt={show.title} />
-        <span className={show.status === "watched" ? "card-badge rating" : "card-badge score"}>
-          {show.status === "watched"
-            ? `${show.userRating}/10`
-            : show.status === "watching"
-              ? "Watching"
-              : `${show.recommendationScore}%`}
-        </span>
-      </div>
+  const handleQuickIgnoreSuggestion = (event, show) => {
+    event.stopPropagation();
 
-      <div className="tv-card-body">
-        <h3>{show.title}</h3>
-        <p className="genre-line">{formatDisplayGenres(show.genres)}</p>
-        <p className="year-line">Year: {show.year}</p>
+    if (isDemoMode) {
+      promptForPrivateList();
+      return;
+    }
 
-        {show.status === "watched" ? (
-          <p className="rating">Your Rating: {show.userRating}</p>
-        ) : show.status === "watching" ? (
-          <p className="score">In progress</p>
-        ) : (
-          <p className="score">Match Score: {show.recommendationScore}%</p>
-        )}
+    ignoreSuggestion(show.tmdbId, show.title);
+  };
 
-      </div>
-    </article>
-  );
+  const renderCard = (show) => {
+    const cardStatusText = getLibraryCardStatusText(show);
+
+    return (
+      <article className="tv-card" key={show._id} onClick={() => setDetailsShow(show)}>
+        <div className="poster-frame">
+          <img src={show.imageUrl} alt={show.title} />
+          <span className={show.status === "watched" ? "card-badge rating" : "card-badge score"}>
+            {show.status === "watched"
+              ? `${show.userRating}/10`
+              : show.status === "watching"
+                ? "Watching"
+                : `${show.recommendationScore}%`}
+          </span>
+        </div>
+
+        <div className="tv-card-body">
+          <h3>{show.title}</h3>
+          <p className="genre-line">{formatDisplayGenres(show.genres)}</p>
+          <p className="year-line">Year: {show.year}</p>
+
+          {cardStatusText && (
+            <p className={show.status === "watched" ? "rating" : "score"}>
+              {cardStatusText}
+            </p>
+          )}
+
+        </div>
+      </article>
+    );
+  };
 
   const renderSuggestionCard = (show) => (
     <article
@@ -918,6 +932,13 @@ function App() {
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />
         <span className="card-badge score">{show.matchScore}%</span>
+        <button
+          className="quick-ignore-button"
+          type="button"
+          onClick={(event) => handleQuickIgnoreSuggestion(event, show)}
+        >
+          Not Interested
+        </button>
       </div>
 
       <div className="tv-card-body">

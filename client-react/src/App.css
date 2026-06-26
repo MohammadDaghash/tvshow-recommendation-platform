@@ -661,6 +661,45 @@ h1 {
   font-weight: 900;
 }
 
+.quick-ignore-button {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  max-width: calc(100% - 24px);
+  min-height: 30px;
+  padding: 6px 9px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  border-radius: 999px;
+  background: rgba(5, 7, 12, 0.62);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  color: #fecaca;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0.82;
+  backdrop-filter: blur(12px);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.quick-ignore-button:hover {
+  border-color: rgba(248, 113, 113, 0.48);
+  background: rgba(127, 29, 29, 0.56);
+  color: #fff1f2;
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.quick-ignore-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
 .tv-card-body {
   position: relative;
   padding: 15px 15px 17px;
