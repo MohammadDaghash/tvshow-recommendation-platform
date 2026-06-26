@@ -53,6 +53,11 @@ const tvShowSchema = new mongoose.Schema(
       default: true,
     },
 
+    status: {
+      type: String,
+      enum: ["watched", "want", "watching"],
+    },
+
     type: {
       type: String,
       default: "tv-show",

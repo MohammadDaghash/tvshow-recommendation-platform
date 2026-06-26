@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   buildUserShowUpdate,
+  decorateShowsWithCatalogState,
   decorateShowsWithUserState,
 } = require("../services/userLibrary.service");
 
@@ -74,6 +75,37 @@ test("decorateShowsWithUserState applies private user state over catalog state",
       watched: false,
       userRating: null,
       status: "want",
+    },
+  ]);
+});
+
+test("decorateShowsWithCatalogState preserves explicit public catalog status", () => {
+  const shows = [
+    {
+      _id: "show-1",
+      title: "Public Watching",
+      watched: false,
+      status: "watching",
+      userRating: 8,
+      toObject() {
+        return {
+          _id: this._id,
+          title: this.title,
+          watched: this.watched,
+          status: this.status,
+          userRating: this.userRating,
+        };
+      },
+    },
+  ];
+
+  assert.deepEqual(decorateShowsWithCatalogState(shows), [
+    {
+      _id: "show-1",
+      title: "Public Watching",
+      watched: false,
+      status: "watching",
+      userRating: null,
     },
   ]);
 });

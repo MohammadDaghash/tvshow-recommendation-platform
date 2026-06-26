@@ -52,10 +52,16 @@ const decorateShowsWithUserState = (tvShows, userStates = []) => {
 const decorateShowsWithCatalogState = (tvShows) => {
   return tvShows.map((tvShow) => {
     const show = typeof tvShow.toObject === "function" ? tvShow.toObject() : tvShow;
-    const status = show.watched ? "watched" : "want";
+    const status = VALID_STATUSES.has(show.status)
+      ? show.status
+      : show.watched
+        ? "watched"
+        : "want";
 
     return {
       ...show,
+      watched: status === "watched",
+      userRating: status === "watched" ? show.userRating : null,
       status,
     };
   });

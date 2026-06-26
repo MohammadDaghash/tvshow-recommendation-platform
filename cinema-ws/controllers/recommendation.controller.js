@@ -3,6 +3,7 @@ const UserShow = require("../models/UserShow");
 const recommendationService = require("../services/recommendation.service");
 const { getTVShowDetailsById } = require("../services/tmdb.service");
 const { buildTMDBCatalogUpdate } = require("../services/tmdbCatalog.service");
+const { buildCatalogShowUpdate } = require("../services/catalogLibrary.service");
 const { buildUserShowUpdate } = require("../services/userLibrary.service");
 
 const getRecommendations = async (req, res) => {
@@ -64,6 +65,29 @@ const updateLibraryStatus = async (req, res) => {
       status,
       userRating,
     });
+
+    res.json(updatedShow);
+  } catch (error) {
+    res.status(error.statusCode || 400).json({
+      message: error.message,
+    });
+  }
+};
+
+const updateCatalogStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, userRating } = req.body;
+    const update = buildCatalogShowUpdate(status, { userRating });
+    const updatedShow = await TVShow.findByIdAndUpdate(id, update, {
+      returnDocument: "after",
+    });
+
+    if (!updatedShow) {
+      return res.status(404).json({
+        message: "TV show not found",
+      });
+    }
 
     res.json(updatedShow);
   } catch (error) {
@@ -202,5 +226,6 @@ module.exports = {
   moveToCurrentlyWatching,
   moveToWantToWatch,
   removeFromLibrary,
+  updateCatalogStatus,
   updateLibraryStatus,
 };

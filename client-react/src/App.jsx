@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "./api";
 import { getTopAISuggestions } from "./aiSuggestions";
 import { buildDemoLibrary } from "./demoLibrary";
-import { getLibraryCardStatusText } from "./cardPresentation";
+import {
+  getLibraryActionLabels,
+  getLibraryCardStatusText,
+} from "./cardPresentation";
 import {
   getSuggestionActionLabels,
   shouldShowIgnoreSuggestionSuccess,
@@ -504,7 +507,11 @@ function App() {
 
     try {
       const response = await fetch(
-        apiUrl(`/api/recommendations/${show._id}/status`),
+        apiUrl(
+          isAdminCatalogMode
+            ? `/api/recommendations/${show._id}/catalog-status`
+            : `/api/recommendations/${show._id}/status`,
+        ),
         {
           method: "PATCH",
           headers: authHeaders(authToken, {
@@ -750,91 +757,52 @@ function App() {
     </button>
   );
 
-  const renderShowActions = (show) => {
-    if (isAdminCatalogMode) {
+  const renderShowAction = (show, label) => {
+    if (label === "Move to Currently Watching") {
       return renderActionButton({
-        label: "Delete Catalog",
-        className: "danger-button",
-        onClick: () => requestCatalogDelete(show),
+        label,
+        className: "watch-button",
+        onClick: () =>
+          updateLibraryStatus(show, "watching", {
+            successMessage: "Moved to Currently Watching.",
+          }),
       });
     }
 
-    if (show.status === "watched") {
-      return (
-        <>
-          {renderActionButton({
-            label: "Delete",
-            className: "danger-button",
-            onClick: () => removeFromLibrary(show),
-          })}
-          {renderActionButton({
-            label: "Move to Currently Watching",
-            className: "watch-button",
-            onClick: () =>
-              updateLibraryStatus(show, "watching", {
-                successMessage: "Moved to Currently Watching.",
-              }),
-          })}
-          {renderActionButton({
-            label: "Move to Want to Watch",
-            className: "secondary-button",
-            onClick: () =>
-              updateLibraryStatus(show, "want", {
-                successMessage: "Moved to Want to Watch.",
-              }),
-          })}
-        </>
-      );
+    if (label === "Move to Want to Watch") {
+      return renderActionButton({
+        label,
+        className: "secondary-button",
+        onClick: () =>
+          updateLibraryStatus(show, "want", {
+            successMessage: "Moved to Want to Watch.",
+          }),
+      });
     }
 
-    if (show.status === "watching") {
-      return (
-        <>
-          {renderActionButton({
-            label: "Delete",
-            className: "danger-button",
-            onClick: () => removeFromLibrary(show),
-          })}
-          {renderActionButton({
-            label: "Move to Want to Watch",
-            className: "secondary-button",
-            onClick: () =>
-              updateLibraryStatus(show, "want", {
-                successMessage: "Moved to Want to Watch.",
-              }),
-          })}
-          {renderActionButton({
-            label: "Move to Watched",
-            className: "watch-button",
-            onClick: () => openRatingModal(show),
-          })}
-        </>
-      );
+    if (label === "Move to Watched" || label === "Change Rating") {
+      return renderActionButton({
+        label,
+        className: "watch-button",
+        onClick: () => openRatingModal(show),
+      });
     }
 
-    return (
-      <>
-        {renderActionButton({
-          label: "Delete",
-          className: "danger-button",
-          onClick: () => removeFromLibrary(show),
-        })}
-        {renderActionButton({
-          label: "Move to Currently Watching",
-          className: "watch-button",
-          onClick: () =>
-            updateLibraryStatus(show, "watching", {
-              successMessage: "Moved to Currently Watching.",
-            }),
-        })}
-        {renderActionButton({
-          label: "Move to Watched",
-          className: "secondary-button",
-          onClick: () => openRatingModal(show),
-        })}
-      </>
-    );
+    return renderActionButton({
+      label,
+      className: "danger-button",
+      onClick: () =>
+        isAdminCatalogMode ? requestCatalogDelete(show) : removeFromLibrary(show),
+    });
   };
+
+  const renderShowActions = (show) => (
+    <>
+      {getLibraryActionLabels(show.status).map((label) =>
+        renderShowAction(show, label),
+      )}
+    </>
+  );
 
   const renderSuggestionAction = (show, label) => {
     if (label === "Not Interested") {

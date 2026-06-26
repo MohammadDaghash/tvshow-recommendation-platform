@@ -26,6 +26,13 @@ router.post(
   recommendationController.moveToCurrentlyWatching,
 );
 
+router.patch(
+  "/:id/catalog-status",
+  protect,
+  adminOnly,
+  recommendationController.updateCatalogStatus,
+);
+
 router.patch("/:id/status", protect, recommendationController.updateLibraryStatus);
 
 router.delete("/:id/library", protect, recommendationController.removeFromLibrary);
