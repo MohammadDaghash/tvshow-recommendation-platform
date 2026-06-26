@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  AI_SUGGESTION_CANDIDATE_LIMIT,
   buildTMDBRecommendations,
 } = require("../services/mlRecommendation.service");
 
@@ -14,6 +15,11 @@ const tmdbShow = (id, voteAverage = 9) => ({
   overview: `Overview ${id}`,
   vote_average: voteAverage,
   popularity: 90 - id,
+});
+
+test("AI_SUGGESTION_CANDIDATE_LIMIT keeps an extra refill buffer beyond 20 visible picks", () => {
+  assert.equal(AI_SUGGESTION_CANDIDATE_LIMIT, 40);
+  assert.ok(AI_SUGGESTION_CANDIDATE_LIMIT > 20);
 });
 
 test("buildTMDBRecommendations filters excluded candidates before limiting to 20", () => {

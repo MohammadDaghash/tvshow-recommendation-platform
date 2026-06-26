@@ -5,6 +5,7 @@ const IgnoredSuggestion = require("../models/IgnoredSuggestion");
 const UserIgnoredSuggestion = require("../models/UserIgnoredSuggestion");
 const recommendationService = require("../services/recommendation.service");
 const {
+  AI_SUGGESTION_CANDIDATE_LIMIT,
   buildTMDBRecommendations,
   getFavoriteGenreIds,
 } = require("../services/mlRecommendation.service");
@@ -100,7 +101,7 @@ const getTMDBRecommendations = async (req, res) => {
       watchedShows,
       excludedTMDBIds,
       excludedTitles,
-      limit: 20,
+      limit: AI_SUGGESTION_CANDIDATE_LIMIT,
     });
 
     res.json(recommendations);
