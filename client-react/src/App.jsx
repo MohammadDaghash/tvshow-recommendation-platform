@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiUrl } from "./api";
-import { getTopAISuggestions } from "./aiSuggestions";
-import { buildDemoLibrary } from "./demoLibrary";
 import { getLibraryActionLabels } from "./cardPresentation";
 import {
   AddShowModal,
@@ -20,17 +18,17 @@ import {
 } from "./suggestionFeedback";
 import {
   getDisplayGenreList,
-  getFilterGenres,
-  getNormalizedDisplayGenres,
   getRecommendationFetchToken,
-  groupShowsByCategory,
-  shouldUsePublicDataset,
 } from "./displayLibrary";
-import { getLeadCarouselConfig } from "./pageLayout";
+import { authHeaders, parseJSONResponse } from "./httpClient";
+import { useInitialData } from "./hooks/useInitialData";
+import { useLibraryViewModel } from "./hooks/useLibraryViewModel";
+import {
+  clearStoredSession,
+  readStoredSession,
+  saveStoredSession,
+} from "./sessionStorage";
 import "./App.css";
-
-const SESSION_STORAGE_KEY = "tvshowUserSession";
-const LEGACY_ADMIN_TOKEN_KEY = "adminToken";
 
 const pageConfig = {
   watched: {
@@ -55,112 +53,18 @@ const pageConfig = {
   },
 };
 
-function readStoredSession() {
-  try {
-    const storedSession = localStorage.getItem(SESSION_STORAGE_KEY);
-
-    if (storedSession) {
-      return JSON.parse(storedSession);
-    }
-
-    const legacyAdminToken = localStorage.getItem(LEGACY_ADMIN_TOKEN_KEY);
-
-    if (legacyAdminToken) {
-      return {
-        token: legacyAdminToken,
-        user: null,
-      };
-    }
-  } catch (error) {
-    console.error(error);
-  }
-
-  return null;
-}
-
-function saveStoredSession(session) {
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-
-  if (session.user?.role === "admin") {
-    localStorage.setItem(LEGACY_ADMIN_TOKEN_KEY, session.token);
-  } else {
-    localStorage.removeItem(LEGACY_ADMIN_TOKEN_KEY);
-  }
-}
-
-function clearStoredSession() {
-  localStorage.removeItem(SESSION_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_ADMIN_TOKEN_KEY);
-}
-
-function authHeaders(token, headers = {}) {
-  return token
-    ? {
-        ...headers,
-        Authorization: `Bearer ${token}`,
-      }
-    : headers;
-}
-
-async function parseJSONResponse(response) {
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.message || "Request failed. Please try again.");
-  }
-
-  return data;
-}
-
-async function fetchInitialData(token) {
-  const authenticatedOptions = token
-    ? {
-        headers: authHeaders(token),
-      }
-    : undefined;
-
-  const [recommendationsResponse, mlSuggestionsResponse] = await Promise.all([
-    fetch(apiUrl("/api/recommendations"), authenticatedOptions),
-    fetch(apiUrl("/api/ml-recommendations/tmdb"), authenticatedOptions),
-  ]);
-
-  if (!recommendationsResponse.ok || !mlSuggestionsResponse.ok) {
-    throw new Error("The server did not return the required TV show data.");
-  }
-
-  const [nextRecommendations, nextMlSuggestions] = await Promise.all([
-    recommendationsResponse.json(),
-    mlSuggestionsResponse.json(),
-  ]);
-
-  return {
-    nextRecommendations,
-    nextMlSuggestions,
-  };
-}
-
-async function fetchIgnoredSuggestionIds(token) {
-  if (!token) return [];
-
-  const response = await fetch(apiUrl("/api/ignored-suggestions"), {
-    headers: authHeaders(token),
-  });
-
-  if (!response.ok) return [];
-
-  const ignoredSuggestions = await response.json();
-
-  return ignoredSuggestions.map((suggestion) => suggestion.tmdbId);
-}
-
 function App() {
   const [authSession, setAuthSession] = useState(readStoredSession);
-  const [recommendations, setRecommendations] = useState([]);
-  const [mlSuggestions, setMlSuggestions] = useState([]);
-  const [initialLoad, setInitialLoad] = useState({
-    status: "loading",
-    error: "",
-  });
+  const {
+    ignoredSuggestionIds,
+    initialLoad,
+    loadAppData,
+    mlSuggestions,
+    recommendations,
+    refreshMLSuggestions,
+    refreshRecommendations,
+    setIgnoredSuggestionIds,
+  } = useInitialData(authSession);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [activePage, setActivePage] = useState("watched");
@@ -182,44 +86,11 @@ function App() {
   const [authError, setAuthError] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState(null);
-  const [ignoredSuggestionIds, setIgnoredSuggestionIds] = useState([]);
 
   const currentUser = authSession?.user || null;
   const authToken = authSession?.token || "";
   const isAdmin = currentUser?.role === "admin";
   const isDemoMode = !currentUser;
-  const usesPublicDataset = shouldUsePublicDataset(currentUser);
-  const isAdminCatalogMode = isAdmin && usesPublicDataset;
-
-  const loadAppData = useCallback(async (token = "") => {
-    setInitialLoad({
-      status: "loading",
-      error: "",
-    });
-
-    try {
-      const [{ nextRecommendations, nextMlSuggestions }, nextIgnoredIds] =
-        await Promise.all([
-          fetchInitialData(token),
-          fetchIgnoredSuggestionIds(token),
-        ]);
-
-      setRecommendations(nextRecommendations);
-      setMlSuggestions(nextMlSuggestions);
-      setIgnoredSuggestionIds(nextIgnoredIds);
-      setInitialLoad({
-        status: "ready",
-        error: "",
-      });
-    } catch (error) {
-      setInitialLoad({
-        status: "error",
-        error:
-          error.message ||
-          "Something went wrong while connecting to the database.",
-      });
-    }
-  }, []);
 
   useEffect(() => {
     let isCurrent = true;
@@ -283,71 +154,28 @@ function App() {
     };
   }, [hasOpenModal]);
 
-  const demoLibrary = useMemo(
-    () => buildDemoLibrary(recommendations),
-    [recommendations],
-  );
-
-  const privateRecommendations = usesPublicDataset ? [] : recommendations;
-
-  const watchedShows = usesPublicDataset
-    ? demoLibrary.watchedShows
-    : privateRecommendations
-        .filter((show) => show.status === "watched")
-        .sort((a, b) => (b.userRating || 0) - (a.userRating || 0));
-
-  const wantShows = usesPublicDataset
-    ? demoLibrary.wantShows
-    : privateRecommendations
-        .filter((show) => show.status === "want")
-        .sort((a, b) => b.recommendationScore - a.recommendationScore);
-
-  const watchingShows = usesPublicDataset
-    ? demoLibrary.watchingShows
-    : privateRecommendations
-        .filter((show) => show.status === "watching")
-        .sort((a, b) => b.recommendationScore - a.recommendationScore);
-
-  const visibleAISuggestions = useMemo(
-    () => getTopAISuggestions(mlSuggestions, ignoredSuggestionIds),
-    [ignoredSuggestionIds, mlSuggestions],
-  );
-
-  const pageShows = useMemo(() => {
-    if (activePage === "watched") return watchedShows;
-    if (activePage === "want") return wantShows;
-    if (activePage === "watching") return watchingShows;
-    return visibleAISuggestions;
-  }, [activePage, visibleAISuggestions, wantShows, watchedShows, watchingShows]);
-
-  const allGenres = getFilterGenres(pageShows);
-
-  const filteredShows = pageShows.filter((show) => {
-    const matchesSearch = show.title
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-
-    const matchesGenre =
-      selectedGenre === "All" ||
-      getNormalizedDisplayGenres(show.genres).includes(selectedGenre);
-
-    return matchesSearch && matchesGenre;
-  });
-
-  const groupedShows = groupShowsByCategory(filteredShows, selectedGenre);
-  const leadCarouselShows =
-    activePage === "ai" ? visibleAISuggestions : filteredShows;
-  const leadCarouselConfig = getLeadCarouselConfig(
-    activePage,
+  const {
+    allGenres,
+    filteredShows,
+    groupedShows,
+    leadCarouselConfig,
     leadCarouselShows,
-  );
-
-  const pageCounts = {
-    watched: watchedShows.length,
-    want: wantShows.length,
-    watching: watchingShows.length,
-    ai: visibleAISuggestions.length,
-  };
+    pageCounts,
+    usesPublicDataset,
+    visibleAISuggestions,
+    wantShows,
+    watchedShows,
+    watchingShows,
+  } = useLibraryViewModel({
+    activePage,
+    currentUser,
+    ignoredSuggestionIds,
+    mlSuggestions,
+    recommendations,
+    searchTerm,
+    selectedGenre,
+  });
+  const isAdminCatalogMode = isAdmin && usesPublicDataset;
 
   const handlePageChange = (page) => {
     setActivePage(page);
@@ -394,28 +222,6 @@ function App() {
     }
 
     action();
-  };
-
-  const refreshRecommendations = async () => {
-    const { nextRecommendations } = await fetchInitialData(
-      getRecommendationFetchToken(authSession),
-    );
-    setRecommendations(nextRecommendations);
-  };
-
-  const refreshMLSuggestions = async () => {
-    const token = getRecommendationFetchToken(authSession);
-    const response = await fetch(
-      apiUrl("/api/ml-recommendations/tmdb"),
-      token
-        ? {
-            headers: authHeaders(token),
-          }
-        : undefined,
-    );
-    const data = await parseJSONResponse(response);
-
-    setMlSuggestions(data);
   };
 
   const handleAuthSubmit = async () => {

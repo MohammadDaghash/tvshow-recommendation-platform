@@ -1,3 +1,5 @@
+import { DEMO_CATALOG } from "./demoCatalog.js";
+
 const normalizeDemoStatus = (show) => {
   if (show.status === "watched" || show.watched === true) {
     return "watched";
@@ -15,7 +17,9 @@ const byRecommendationScore = (left, right) => {
 };
 
 export function buildDemoLibrary(recommendations, demoWatchingCount = 2) {
-  const normalizedShows = recommendations.map((show) => ({
+  const sourceShows = recommendations.length > 0 ? recommendations : DEMO_CATALOG;
+
+  const normalizedShows = sourceShows.map((show) => ({
     ...show,
     status: normalizeDemoStatus(show),
     watched: normalizeDemoStatus(show) === "watched",
@@ -49,4 +53,16 @@ export function buildDemoLibrary(recommendations, demoWatchingCount = 2) {
     watchedShows,
     watchingShows: derivedWatchingShows,
   };
+}
+
+export function buildDemoAISuggestions(recommendations) {
+  const sourceShows = recommendations.length > 0 ? recommendations : DEMO_CATALOG;
+
+  return sourceShows
+    .filter((show) => normalizeDemoStatus(show) !== "watched")
+    .map((show) => ({
+      ...show,
+      isAISuggestion: true,
+      matchScore: show.matchScore ?? show.recommendationScore ?? 0,
+    }));
 }

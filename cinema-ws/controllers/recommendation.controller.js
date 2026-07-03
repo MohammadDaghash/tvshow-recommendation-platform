@@ -5,6 +5,28 @@ const { getTVShowDetailsById } = require("../services/tmdb.service");
 const { buildTMDBCatalogUpdate } = require("../services/tmdbCatalog.service");
 const { buildCatalogShowUpdate } = require("../services/catalogLibrary.service");
 const { buildUserShowUpdate } = require("../services/userLibrary.service");
+const {
+  recordInteractionEvent,
+} = require("../services/interactionEvent.service");
+
+const recordUserInteraction = (req, payload) => {
+  if (!req.user || req.user.role === "admin") {
+    return Promise.resolve(null);
+  }
+
+  return recordInteractionEvent(
+    {
+      userId: req.user._id,
+      sourcePage: req.body?.sourcePage,
+      ...payload,
+    },
+    { bestEffort: true },
+  );
+};
+
+const getStatusEventType = (status) => {
+  return status === "watched" ? "rating_submitted" : "status_changed";
+};
 
 const getRecommendations = async (req, res) => {
   try {
@@ -66,6 +88,14 @@ const updateLibraryStatus = async (req, res) => {
       userRating,
     });
 
+    await recordUserInteraction(req, {
+      eventType: getStatusEventType(status),
+      tvShowId: id,
+      title: updatedShow?.title,
+      rating: status === "watched" ? userRating : undefined,
+      status,
+    });
+
     res.json(updatedShow);
   } catch (error) {
     res.status(error.statusCode || 400).json({
@@ -109,6 +139,14 @@ const markAsWatched = async (req, res) => {
       userRating,
     });
 
+    await recordUserInteraction(req, {
+      eventType: "rating_submitted",
+      tvShowId: id,
+      title: updatedShow?.title,
+      rating: userRating,
+      status: "watched",
+    });
+
     res.json(updatedShow);
   } catch (error) {
     res.status(error.statusCode || 400).json({
@@ -127,6 +165,13 @@ const moveToWantToWatch = async (req, res) => {
       status: "want",
     });
 
+    await recordUserInteraction(req, {
+      eventType: "status_changed",
+      tvShowId: id,
+      title: updatedShow?.title,
+      status: "want",
+    });
+
     res.json(updatedShow);
   } catch (error) {
     res.status(error.statusCode || 400).json({ message: error.message });
@@ -140,6 +185,13 @@ const moveToCurrentlyWatching = async (req, res) => {
     const updatedShow = await upsertUserShowStatus({
       userId: req.user._id,
       tvShowId: id,
+      status: "watching",
+    });
+
+    await recordUserInteraction(req, {
+      eventType: "status_changed",
+      tvShowId: id,
+      title: updatedShow?.title,
       status: "watching",
     });
 
@@ -180,6 +232,19 @@ const addTMDBToLibrary = async (req, res) => {
       userRating,
     });
 
+    await recordUserInteraction(req, {
+      eventType: "suggestion_accepted",
+      tvShowId: tvShow._id,
+      tmdbId: tvShow.tmdbId,
+      title: tvShow.title,
+      rating: status === "watched" ? userRating : undefined,
+      status,
+      metadata: {
+        popularity: tvShow.popularity,
+        tmdbRating: tvShow.tmdbRating,
+      },
+    });
+
     res.status(201).json(updatedShow);
   } catch (error) {
     res.status(error.statusCode || 400).json({
@@ -192,9 +257,15 @@ const removeFromLibrary = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await UserShow.findOneAndDelete({
+    const deletedUserShow = await UserShow.findOneAndDelete({
       user: req.user._id,
       tvShow: id,
+    }).populate("tvShow");
+
+    await recordUserInteraction(req, {
+      eventType: "library_removed",
+      tvShowId: id,
+      title: deletedUserShow?.tvShow?.title,
     });
 
     res.json({

@@ -1,4 +1,23 @@
 const UserIgnoredSuggestion = require("../models/UserIgnoredSuggestion");
+const {
+  recordInteractionEvent,
+} = require("../services/interactionEvent.service");
+
+const recordIgnoredSuggestion = (req, payload) => {
+  if (!req.user || req.user.role === "admin") {
+    return Promise.resolve(null);
+  }
+
+  return recordInteractionEvent(
+    {
+      userId: req.user._id,
+      eventType: "suggestion_ignored",
+      sourcePage: req.body?.sourcePage || "ai",
+      ...payload,
+    },
+    { bestEffort: true },
+  );
+};
 
 const getIgnoredSuggestions = async (req, res) => {
   try {
@@ -39,6 +58,11 @@ const ignoreSuggestion = async (req, res) => {
         upsert: true,
       },
     );
+
+    await recordIgnoredSuggestion(req, {
+      tmdbId,
+      title,
+    });
 
     res.status(201).json(ignoredSuggestion);
   } catch (error) {
