@@ -35,7 +35,7 @@ const getIgnoredSuggestions = async (req, res) => {
 
 const ignoreSuggestion = async (req, res) => {
   try {
-    const { tmdbId, title } = req.body;
+    const { metadata, tmdbId, title } = req.body;
 
     if (!tmdbId || !title) {
       return res.status(400).json({
@@ -60,6 +60,7 @@ const ignoreSuggestion = async (req, res) => {
     );
 
     await recordIgnoredSuggestion(req, {
+      metadata,
       tmdbId,
       title,
     });

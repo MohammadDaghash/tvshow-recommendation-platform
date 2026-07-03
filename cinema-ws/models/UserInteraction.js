@@ -5,6 +5,10 @@ const interactionEventTypes = [
   "rating_submitted",
   "suggestion_accepted",
   "suggestion_ignored",
+  "suggestion_impression",
+  "card_opened",
+  "search_performed",
+  "filter_used",
   "library_removed",
 ];
 
@@ -39,7 +43,22 @@ const userInteractionSchema = new mongoose.Schema(
       type: String,
     },
 
+    recommendationLog: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RecommendationLog",
+      index: true,
+    },
+
     sourcePage: {
+      type: String,
+    },
+
+    position: {
+      type: Number,
+      min: 0,
+    },
+
+    modelVersion: {
       type: String,
     },
 

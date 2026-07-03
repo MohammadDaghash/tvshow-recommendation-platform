@@ -11,6 +11,7 @@ const authRoutes = require("./routes/auth.routes");
 const mlRoutes = require("./routes/ml.routes");
 const mlRecommendationRoutes = require("./routes/mlRecommendation.routes");
 const ignoredSuggestionRoutes = require("./routes/ignoredSuggestion.routes");
+const interactionRoutes = require("./routes/interaction.routes");
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/ml", mlRoutes);
 app.use("/api/ml-recommendations", mlRecommendationRoutes);
 app.use("/api/ignored-suggestions", ignoredSuggestionRoutes);
+app.use("/api/interactions", interactionRoutes);
 
 app.get("/", (req, res) => {
   res.json({

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiUrl } from "./api";
 import { getLibraryActionLabels } from "./cardPresentation";
 import {
@@ -21,6 +21,18 @@ import {
   getRecommendationFetchToken,
 } from "./displayLibrary";
 import { authHeaders, parseJSONResponse } from "./httpClient";
+import {
+  trackInteraction,
+  trackInteractionBatch,
+  trackRecommendationFeedback,
+  trackRecommendationLog,
+} from "./interactionClient";
+import {
+  buildCardOpenEvent,
+  buildRecommendationFeedbackPayload,
+  buildRecommendationLogPayload,
+  buildSuggestionImpressionEvents,
+} from "./interactionPayloads";
 import { useInitialData } from "./hooks/useInitialData";
 import { useLibraryViewModel } from "./hooks/useLibraryViewModel";
 import {
@@ -86,11 +98,13 @@ function App() {
   const [authError, setAuthError] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+  const trackedSuggestionSetRef = useRef("");
 
   const currentUser = authSession?.user || null;
   const authToken = authSession?.token || "";
   const isAdmin = currentUser?.role === "admin";
   const isDemoMode = !currentUser;
+  const canTrackPersonalData = Boolean(currentUser && !isAdmin && authToken);
 
   useEffect(() => {
     let isCurrent = true;
@@ -177,6 +191,49 @@ function App() {
   });
   const isAdminCatalogMode = isAdmin && usesPublicDataset;
 
+  useEffect(() => {
+    if (
+      !canTrackPersonalData ||
+      activePage !== "ai" ||
+      visibleAISuggestions.length === 0
+    ) {
+      return;
+    }
+
+    const suggestionSignature = [
+      currentUser._id,
+      ...visibleAISuggestions.map(
+        (show) => show.tmdbId || show._id || show.title,
+      ),
+    ].join("|");
+
+    if (trackedSuggestionSetRef.current === suggestionSignature) {
+      return;
+    }
+
+    trackedSuggestionSetRef.current = suggestionSignature;
+
+    void trackInteractionBatch(
+      authToken,
+      buildSuggestionImpressionEvents(visibleAISuggestions, "ai"),
+    );
+    void trackRecommendationLog(
+      authToken,
+      buildRecommendationLogPayload({
+        page: "ai",
+        source: usesPublicDataset ? "demo" : "tmdb",
+        shows: visibleAISuggestions,
+      }),
+    );
+  }, [
+    activePage,
+    authToken,
+    canTrackPersonalData,
+    currentUser,
+    usesPublicDataset,
+    visibleAISuggestions,
+  ]);
+
   const handlePageChange = (page) => {
     setActivePage(page);
     setSearchTerm("");
@@ -189,6 +246,30 @@ function App() {
       title,
       message,
     });
+  };
+
+  const trackPersonalInteraction = (event) => {
+    if (!canTrackPersonalData) return;
+
+    void trackInteraction(authToken, event);
+  };
+
+  const trackPersonalRecommendationFeedback = (show, action, options = {}) => {
+    if (!canTrackPersonalData) return;
+
+    void trackRecommendationFeedback(
+      authToken,
+      buildRecommendationFeedbackPayload(show, action, {
+        sourcePage: activePage,
+        ...options,
+      }),
+    );
+  };
+
+  const getFeedbackActionForStatus = (status) => {
+    if (status === "watched") return "accepted_watched";
+    if (status === "watching") return "accepted_watching";
+    return "accepted_want";
   };
 
   const openAuthModal = (mode, message = "") => {
@@ -309,12 +390,18 @@ function App() {
           body: JSON.stringify({
             status,
             userRating,
+            sourcePage: activePage,
           }),
         },
       );
 
       await parseJSONResponse(response);
       await refreshRecommendations();
+      if (status === "watched") {
+        trackPersonalRecommendationFeedback(show, "rated", {
+          rating: userRating,
+        });
+      }
       setDetailsShow(null);
       setActivePage(status === "want" ? "want" : status);
       showNotice("success", "List updated", successMessage);
@@ -404,12 +491,24 @@ function App() {
           tmdbId: show.tmdbId,
           status,
           userRating,
+          sourcePage: activePage,
+          metadata: {
+            matchScore: show.matchScore,
+            recommendationScore: show.recommendationScore,
+          },
         }),
       });
 
       await parseJSONResponse(response);
       await refreshRecommendations();
       await refreshMLSuggestions();
+      trackPersonalRecommendationFeedback(
+        show,
+        getFeedbackActionForStatus(status),
+        {
+          rating: userRating,
+        },
+      );
       setDetailsShow(null);
       setActivePage(status === "want" ? "want" : status);
       showNotice(
@@ -423,7 +522,7 @@ function App() {
     }
   };
 
-  const ignoreSuggestion = async (tmdbId, title, options = {}) => {
+  const ignoreSuggestion = async (show, options = {}) => {
     if (!requireUser()) return;
 
     try {
@@ -433,20 +532,28 @@ function App() {
           "Content-Type": "application/json",
         }),
         body: JSON.stringify({
-          tmdbId,
-          title,
+          tmdbId: show.tmdbId,
+          title: show.title,
+          sourcePage: activePage,
+          metadata: {
+            matchScore: show.matchScore,
+            recommendationScore: show.recommendationScore,
+          },
         }),
       });
 
       await parseJSONResponse(response);
       setIgnoredSuggestionIds((previousIds) =>
-        previousIds.includes(tmdbId) ? previousIds : [...previousIds, tmdbId],
+        previousIds.includes(show.tmdbId)
+          ? previousIds
+          : [...previousIds, show.tmdbId],
       );
       await refreshMLSuggestions();
+      trackPersonalRecommendationFeedback(show, "ignored");
       setDetailsShow(null);
 
       if (shouldShowIgnoreSuggestionSuccess(options)) {
-        showNotice("success", "Suggestion hidden", `${title} will stay hidden.`);
+        showNotice("success", "Suggestion hidden", `${show.title} will stay hidden.`);
       }
     } catch (error) {
       showNotice("error", "Could not hide suggestion", error.message);
@@ -598,7 +705,7 @@ function App() {
       return renderActionButton({
         label,
         className: "danger-button",
-        onClick: () => ignoreSuggestion(show.tmdbId, show.title),
+        onClick: () => ignoreSuggestion(show),
       });
     }
 
@@ -641,14 +748,37 @@ function App() {
       return;
     }
 
-    ignoreSuggestion(show.tmdbId, show.title, { silent: true });
+    ignoreSuggestion(show, { silent: true });
+  };
+
+  const getVisibleShowPosition = (show) => {
+    const visibleShows = activePage === "ai" ? visibleAISuggestions : filteredShows;
+    const showKey = show._id || show.tmdbId || show.title;
+    const visibleIndex = visibleShows.findIndex(
+      (visibleShow) =>
+        (visibleShow._id || visibleShow.tmdbId || visibleShow.title) === showKey,
+    );
+
+    return visibleIndex >= 0 ? visibleIndex + 1 : undefined;
+  };
+
+  const handleCardSelect = (show) => {
+    setDetailsShow(show);
+
+    trackPersonalInteraction(
+      buildCardOpenEvent(show, activePage, getVisibleShowPosition(show)),
+    );
+
+    if (show.isAISuggestion || activePage === "ai") {
+      trackPersonalRecommendationFeedback(show, "opened");
+    }
   };
 
   const renderCard = (show) => (
     <LibraryCard
       formatGenres={formatDisplayGenres}
       key={show._id}
-      onSelect={setDetailsShow}
+      onSelect={handleCardSelect}
       show={show}
     />
   );
@@ -658,7 +788,7 @@ function App() {
       formatGenres={formatDisplayGenres}
       key={show.tmdbId || show.title}
       onQuickIgnore={handleQuickIgnoreSuggestion}
-      onSelect={setDetailsShow}
+      onSelect={handleCardSelect}
       show={show}
     />
   );

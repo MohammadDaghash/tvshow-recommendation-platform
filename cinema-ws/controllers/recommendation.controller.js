@@ -14,11 +14,17 @@ const recordUserInteraction = (req, payload) => {
     return Promise.resolve(null);
   }
 
+  const requestMetadata = req.body?.metadata || {};
+
   return recordInteractionEvent(
     {
       userId: req.user._id,
       sourcePage: req.body?.sourcePage,
       ...payload,
+      metadata: {
+        ...requestMetadata,
+        ...(payload.metadata || {}),
+      },
     },
     { bestEffort: true },
   );
@@ -240,6 +246,7 @@ const addTMDBToLibrary = async (req, res) => {
       rating: status === "watched" ? userRating : undefined,
       status,
       metadata: {
+        ...(req.body.metadata || {}),
         popularity: tvShow.popularity,
         tmdbRating: tvShow.tmdbRating,
       },

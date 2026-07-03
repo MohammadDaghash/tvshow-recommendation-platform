@@ -8,3 +8,9 @@ coverage
 .vscode
 __pycache__
 *.pyc
+*.pdf
+*.epub
+*.djvu
+private-course-materials/
+course-books/
+.codex-private/

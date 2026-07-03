@@ -5,6 +5,10 @@ const INTERACTION_EVENT_TYPES = Object.freeze([
   "rating_submitted",
   "suggestion_accepted",
   "suggestion_ignored",
+  "suggestion_impression",
+  "card_opened",
+  "search_performed",
+  "filter_used",
   "library_removed",
 ]);
 
@@ -30,9 +34,12 @@ const buildInteractionEvent = ({
   userId,
   eventType,
   tvShowId,
+  recommendationLogId,
   tmdbId,
   title,
   sourcePage,
+  position,
+  modelVersion,
   rating,
   status,
   metadata,
@@ -54,9 +61,16 @@ const buildInteractionEvent = ({
   };
 
   if (tvShowId) event.tvShow = normalizeId(tvShowId);
+  if (recommendationLogId) {
+    event.recommendationLog = normalizeId(recommendationLogId);
+  }
   if (tmdbId) event.tmdbId = Number(tmdbId);
   if (title) event.title = title;
   if (sourcePage) event.sourcePage = sourcePage;
+  if (position !== undefined && position !== null) {
+    event.position = Number(position);
+  }
+  if (modelVersion) event.modelVersion = modelVersion;
   if (status) event.status = status;
 
   if (rating !== undefined && rating !== null) {
@@ -91,8 +105,32 @@ const recordInteractionEvent = async (
   }
 };
 
+const recordInteractionEvents = async (
+  payloads,
+  { bestEffort = false, logger = console.warn, model = UserInteraction } = {},
+) => {
+  try {
+    const events = payloads.map((payload) => buildInteractionEvent(payload));
+
+    if (events.length === 0) return [];
+
+    return await model.insertMany(events);
+  } catch (error) {
+    if (bestEffort) {
+      if (logger) {
+        logger("Interaction event batch was not recorded:", error.message);
+      }
+
+      return [];
+    }
+
+    throw error;
+  }
+};
+
 module.exports = {
   INTERACTION_EVENT_TYPES,
   buildInteractionEvent,
+  recordInteractionEvents,
   recordInteractionEvent,
 };

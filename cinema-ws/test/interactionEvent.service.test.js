@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   buildInteractionEvent,
+  recordInteractionEvents,
   recordInteractionEvent,
 } = require("../services/interactionEvent.service");
 
@@ -117,4 +118,81 @@ test("recordInteractionEvent can fail silently in best-effort mode", async () =>
   );
 
   assert.equal(result, null);
+});
+
+test("buildInteractionEvent supports card opens and suggestion impressions", () => {
+  assert.deepEqual(
+    buildInteractionEvent({
+      userId: "user-1",
+      eventType: "card_opened",
+      tvShowId: "show-1",
+      title: "Severance",
+      sourcePage: "want",
+      position: 4,
+      modelVersion: "baseline-v1",
+    }),
+    {
+      user: "user-1",
+      eventType: "card_opened",
+      tvShow: "show-1",
+      title: "Severance",
+      sourcePage: "want",
+      position: 4,
+      modelVersion: "baseline-v1",
+      metadata: {},
+    },
+  );
+
+  assert.equal(
+    buildInteractionEvent({
+      userId: "user-1",
+      eventType: "suggestion_impression",
+      tmdbId: 95396,
+      title: "Severance",
+      sourcePage: "ai",
+    }).eventType,
+    "suggestion_impression",
+  );
+});
+
+test("recordInteractionEvents persists a batch of built events", async () => {
+  const insertedEvents = [];
+  const model = {
+    insertMany: async (events) => {
+      insertedEvents.push(...events);
+      return events.map((event, index) => ({
+        _id: `event-${index + 1}`,
+        ...event,
+      }));
+    },
+  };
+
+  const result = await recordInteractionEvents(
+    [
+      {
+        userId: "user-1",
+        eventType: "suggestion_impression",
+        tmdbId: 1,
+        title: "Suggestion 1",
+        sourcePage: "ai",
+      },
+      {
+        userId: "user-1",
+        eventType: "suggestion_impression",
+        tmdbId: 2,
+        title: "Suggestion 2",
+        sourcePage: "ai",
+      },
+    ],
+    { model },
+  );
+
+  assert.equal(result.length, 2);
+  assert.deepEqual(
+    insertedEvents.map((event) => [event.eventType, event.tmdbId]),
+    [
+      ["suggestion_impression", 1],
+      ["suggestion_impression", 2],
+    ],
+  );
 });
