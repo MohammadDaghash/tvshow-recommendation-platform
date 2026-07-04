@@ -34,6 +34,7 @@ import {
 import {
   buildSuggestionTrackingPayloads,
   buildSuggestionTrackingSignature,
+  resolveCurrentRecommendationLogId,
 } from "./recommendationTracking";
 import { useInitialData } from "./hooks/useInitialData";
 import { useLibraryViewModel } from "./hooks/useLibraryViewModel";
@@ -219,13 +220,21 @@ function App() {
         shows: visibleAISuggestions,
         usesPublicDataset,
       });
-      const logResponse = await trackRecommendationLog(authToken, logPayload);
+      const logPromise = trackRecommendationLog(authToken, logPayload);
+
+      activeRecommendationLogRef.current = {
+        promise: logPromise,
+        signature: suggestionSignature,
+      };
+
+      const logResponse = await logPromise;
       const recommendationLogId = logResponse?.id;
 
       if (trackedSuggestionSetRef.current !== suggestionSignature) return;
 
       activeRecommendationLogRef.current = {
         id: recommendationLogId,
+        promise: Promise.resolve(logResponse),
         signature: suggestionSignature,
       };
 
@@ -248,7 +257,7 @@ function App() {
     visibleAISuggestions,
   ]);
 
-  const getCurrentRecommendationLogId = () => {
+  const getCurrentRecommendationLogId = async () => {
     if (!canTrackPersonalData || activePage !== "ai") return undefined;
 
     const currentSignature = buildSuggestionTrackingSignature({
@@ -256,9 +265,10 @@ function App() {
       shows: visibleAISuggestions,
     });
 
-    return activeRecommendationLogRef.current?.signature === currentSignature
-      ? activeRecommendationLogRef.current.id
-      : undefined;
+    return resolveCurrentRecommendationLogId({
+      currentSignature,
+      getTrackingEntry: () => activeRecommendationLogRef.current,
+    });
   };
 
   const handlePageChange = (page) => {
@@ -275,24 +285,42 @@ function App() {
     });
   };
 
-  const trackPersonalInteraction = (event) => {
+  const trackPersonalCardOpen = (show, position) => {
     if (!canTrackPersonalData) return;
 
-    void trackInteraction(authToken, event);
+    void (async () => {
+      const recommendationLogId = await getCurrentRecommendationLogId();
+
+      await trackInteraction(
+        authToken,
+        buildCardOpenEvent(show, activePage, position, {
+          recommendationLogId,
+        }),
+      );
+    })();
   };
 
   const trackPersonalRecommendationFeedback = (show, action, options = {}) => {
     if (!canTrackPersonalData) return;
 
-    void trackRecommendationFeedback(
-      authToken,
-      buildRecommendationFeedbackPayload(show, action, {
-        recommendationLogId:
-          options.recommendationLogId ?? getCurrentRecommendationLogId(),
-        sourcePage: activePage,
-        ...options,
-      }),
-    );
+    void (async () => {
+      const hasRecommendationLogId = Object.prototype.hasOwnProperty.call(
+        options,
+        "recommendationLogId",
+      );
+      const recommendationLogId = hasRecommendationLogId
+        ? options.recommendationLogId
+        : await getCurrentRecommendationLogId();
+
+      await trackRecommendationFeedback(
+        authToken,
+        buildRecommendationFeedbackPayload(show, action, {
+          recommendationLogId,
+          sourcePage: activePage,
+          ...options,
+        }),
+      );
+    })();
   };
 
   const getFeedbackActionForStatus = (status) => {
@@ -511,6 +539,7 @@ function App() {
     if (!requireUser()) return;
 
     try {
+      const recommendationLogIdPromise = getCurrentRecommendationLogId();
       const response = await fetch(apiUrl("/api/recommendations/from-tmdb"), {
         method: "POST",
         headers: authHeaders(authToken, {
@@ -531,10 +560,13 @@ function App() {
       await parseJSONResponse(response);
       await refreshRecommendations();
       await refreshMLSuggestions();
+      const recommendationLogId = await recommendationLogIdPromise;
+
       trackPersonalRecommendationFeedback(
         show,
         getFeedbackActionForStatus(status),
         {
+          recommendationLogId,
           rating: userRating,
         },
       );
@@ -555,6 +587,7 @@ function App() {
     if (!requireUser()) return;
 
     try {
+      const recommendationLogIdPromise = getCurrentRecommendationLogId();
       const response = await fetch(apiUrl("/api/ignored-suggestions"), {
         method: "POST",
         headers: authHeaders(authToken, {
@@ -578,7 +611,11 @@ function App() {
           : [...previousIds, show.tmdbId],
       );
       await refreshMLSuggestions();
-      trackPersonalRecommendationFeedback(show, "ignored");
+      const recommendationLogId = await recommendationLogIdPromise;
+
+      trackPersonalRecommendationFeedback(show, "ignored", {
+        recommendationLogId,
+      });
       setDetailsShow(null);
 
       if (shouldShowIgnoreSuggestionSuccess(options)) {
@@ -794,11 +831,7 @@ function App() {
   const handleCardSelect = (show) => {
     setDetailsShow(show);
 
-    trackPersonalInteraction(
-      buildCardOpenEvent(show, activePage, getVisibleShowPosition(show), {
-        recommendationLogId: getCurrentRecommendationLogId(),
-      }),
-    );
+    trackPersonalCardOpen(show, getVisibleShowPosition(show));
 
     if (show.isAISuggestion || activePage === "ai") {
       trackPersonalRecommendationFeedback(show, "opened");
