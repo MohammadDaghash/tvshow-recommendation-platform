@@ -3,11 +3,11 @@ export function getLibraryCardStatusText(show) {
     return `Your Rating: ${show.userRating}`;
   }
 
-  if (show.status === "watching") {
-    return "In progress";
-  }
+  const matchScore = show.matchScore ?? show.recommendationScore;
 
-  return null;
+  if (matchScore === undefined || matchScore === null) return null;
+
+  return `Match Score: ${matchScore}%`;
 }
 
 export function getSuggestionBadgeText(show) {
@@ -18,6 +18,14 @@ export function getSuggestionBadgeText(show) {
   }
 
   return `TMDB ${rating.toFixed(1)}`;
+}
+
+export function getLibraryBadgeText(show) {
+  if (show.status === "watched") {
+    return `${show.userRating}/10`;
+  }
+
+  return getSuggestionBadgeText(show);
 }
 
 export function getLibraryActionLabels(status) {

@@ -3,34 +3,37 @@ import test from "node:test";
 
 import {
   getLibraryActionLabels,
+  getLibraryBadgeText,
   getLibraryCardStatusText,
   getSuggestionBadgeText,
 } from "./cardPresentation.js";
 
-test("getLibraryCardStatusText omits duplicate match score text for want-to-watch cards", () => {
+test("getLibraryCardStatusText shows match score for non-watched cards", () => {
   assert.equal(
     getLibraryCardStatusText({
       status: "want",
       recommendationScore: 57,
     }),
-    null,
-  );
-});
-
-test("getLibraryCardStatusText keeps watched and currently watching card status text", () => {
-  assert.equal(
-    getLibraryCardStatusText({
-      status: "watched",
-      userRating: 8.5,
-    }),
-    "Your Rating: 8.5",
+    "Match Score: 57%",
   );
 
   assert.equal(
     getLibraryCardStatusText({
       status: "watching",
+      recommendationScore: 64,
     }),
-    "In progress",
+    "Match Score: 64%",
+  );
+});
+
+test("getLibraryCardStatusText keeps watched card status as user rating", () => {
+  assert.equal(
+    getLibraryCardStatusText({
+      status: "watched",
+      userRating: 8.5,
+      recommendationScore: 92,
+    }),
+    "Your Rating: 8.5",
   );
 });
 
@@ -63,5 +66,33 @@ test("getSuggestionBadgeText uses TMDB rating instead of duplicate match score",
       tmdbRating: 8.734,
     }),
     "TMDB 8.7",
+  );
+});
+
+test("getLibraryBadgeText uses TMDB rating except on watched cards", () => {
+  assert.equal(
+    getLibraryBadgeText({
+      status: "want",
+      tmdbRating: 8.234,
+      recommendationScore: 71,
+    }),
+    "TMDB 8.2",
+  );
+
+  assert.equal(
+    getLibraryBadgeText({
+      status: "watching",
+      tmdbRating: 7.9,
+    }),
+    "TMDB 7.9",
+  );
+
+  assert.equal(
+    getLibraryBadgeText({
+      status: "watched",
+      userRating: 9.1,
+      tmdbRating: 8.8,
+    }),
+    "9.1/10",
   );
 });

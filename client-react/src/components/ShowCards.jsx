@@ -1,4 +1,5 @@
 import {
+  getLibraryBadgeText,
   getLibraryCardStatusText,
   getSuggestionBadgeText,
 } from "../cardPresentation";
@@ -10,12 +11,14 @@ export function LibraryCard({ show, formatGenres, onSelect }) {
     <article className="tv-card" key={show._id} onClick={() => onSelect(show)}>
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />
-        <span className={show.status === "watched" ? "card-badge rating" : "card-badge score"}>
-          {show.status === "watched"
-            ? `${show.userRating}/10`
-            : show.status === "watching"
-              ? "Watching"
-              : `${show.recommendationScore}%`}
+        <span
+          className={
+            show.status === "watched"
+              ? "card-badge rating"
+              : "card-badge tmdb-badge"
+          }
+        >
+          {getLibraryBadgeText(show)}
         </span>
       </div>
 
