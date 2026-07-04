@@ -6,6 +6,7 @@ const RecommendationLog = require("../models/RecommendationLog");
 const TVShow = require("../models/TVShow");
 const User = require("../models/User");
 const UserInteraction = require("../models/UserInteraction");
+const UserShow = require("../models/UserShow");
 const { buildTrainingHealth } = require("../services/trainingHealth.service");
 
 const toPlainRecord = (record) => ({
@@ -48,10 +49,11 @@ const getMLRecommendations = async (req, res) => {
 
 const getTrainingHealth = async (req, res) => {
   try {
-    const [users, tvShows, recommendationLogs, userInteractions, feedback] =
+    const [users, tvShows, userShows, recommendationLogs, userInteractions, feedback] =
       await Promise.all([
         User.find({}).lean(),
         TVShow.find({}).lean(),
+        UserShow.find({}).lean(),
         RecommendationLog.find({}).lean(),
         UserInteraction.find({}).lean(),
         RecommendationFeedback.find({}).lean(),
@@ -61,6 +63,7 @@ const getTrainingHealth = async (req, res) => {
       buildTrainingHealth({
         users: users.map(toPlainRecord),
         tvShows: tvShows.map(toPlainRecord),
+        userShows: userShows.map(toPlainRecord),
         recommendationLogs: recommendationLogs.map(toPlainRecord),
         userInteractions: userInteractions.map(toPlainRecord),
         recommendationFeedback: feedback.map(toPlainRecord),

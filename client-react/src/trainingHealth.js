@@ -1,20 +1,25 @@
 export const formatPercent = (value) => `${Math.round(Number(value || 0) * 100)}%`;
 
 export function getReadinessLabel(status) {
-  return status === "ready" ? "Ready for ML experiments" : "Collect more signals";
+  return status === "ready" ? "Taste profile ready" : "Collect more signals";
 }
 
 export function getHealthMetricCards(health) {
   const signalSummary = health?.signalReport?.summary || {};
   const analysisSummary = health?.trainingAnalysis?.summary || {};
+  const tasteSummary = health?.tasteProfile?.summary || {};
 
   return [
     {
-      label: "Training Rows",
-      value: analysisSummary.rowCount || 0,
+      label: "Rated Shows",
+      value: tasteSummary.ratedCount || 0,
     },
     {
-      label: "Labelled Rows",
+      label: "Taste Signals",
+      value: tasteSummary.totalTasteSignals || 0,
+    },
+    {
+      label: "AI Feedback Labels",
       value: `${analysisSummary.supervisedLabelCount || 0} (${formatPercent(
         analysisSummary.supervisedLabelRate,
       )})`,

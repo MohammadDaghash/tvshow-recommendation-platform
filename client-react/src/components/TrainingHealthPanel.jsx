@@ -79,19 +79,22 @@ export function TrainingHealthPanel() {
 
   const metricCards = getHealthMetricCards(health);
   const analysis = health.trainingAnalysis;
+  const feedbackReadiness = analysis.readiness;
+  const profileReadiness = health.tasteProfile.readiness;
 
   return (
     <section className="training-health-panel">
       <div className="training-health-header">
         <div>
-          <p className="lead-carousel-kicker">Training Data</p>
-          <h2>{getReadinessLabel(analysis.readiness.status)}</h2>
+          <p className="lead-carousel-kicker">Taste Profile Data</p>
+          <h2>{getReadinessLabel(profileReadiness.status)}</h2>
           <p className="training-health-muted">
-            Last checked {new Date(health.generatedAt).toLocaleString()}
+            Watched ratings and list actions are counted here. AI feedback is
+            tracked separately below.
           </p>
         </div>
-        <span className={`readiness-pill ${analysis.readiness.status}`}>
-          {analysis.readiness.status.replace("_", " ")}
+        <span className={`readiness-pill ${profileReadiness.status}`}>
+          {profileReadiness.status.replace("_", " ")}
         </span>
       </div>
 
@@ -106,22 +109,55 @@ export function TrainingHealthPanel() {
 
       <div className="training-health-columns">
         <article className="training-health-detail">
-          <h3>Readiness Gaps</h3>
-          {analysis.readiness.reasons.length ? (
+          <h3>Taste Profile Gaps</h3>
+          {profileReadiness.reasons.length ? (
             <ul>
-              {analysis.readiness.reasons.map((reason) => (
+              {profileReadiness.reasons.map((reason) => (
                 <li key={reason}>{reason}</li>
               ))}
             </ul>
           ) : (
             <p className="training-health-muted">
-              Enough labelled examples exist for a first ML experiment.
+              Enough watched/list data exists for profile-based recommendations.
             </p>
           )}
         </article>
 
         <article className="training-health-detail">
-          <h3>Coverage</h3>
+          <h3>AI Feedback Gaps</h3>
+          {feedbackReadiness.reasons.length ? (
+            <ul>
+              {feedbackReadiness.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="training-health-muted">
+              Enough AI suggestion feedback exists for a first evaluation.
+            </p>
+          )}
+        </article>
+      </div>
+
+      <div className="training-health-columns">
+        <article className="training-health-detail">
+          <h3>Profile Counts</h3>
+          <p>
+            Watched:{" "}
+            <strong>{health.tasteProfile.summary.watchedCount}</strong>
+          </p>
+          <p>
+            Want to Watch:{" "}
+            <strong>{health.tasteProfile.summary.wantCount}</strong>
+          </p>
+          <p>
+            Currently Watching:{" "}
+            <strong>{health.tasteProfile.summary.watchingCount}</strong>
+          </p>
+        </article>
+
+        <article className="training-health-detail">
+          <h3>Recommendation Row Coverage</h3>
           <p>
             Genre metadata:{" "}
             <strong>

@@ -84,3 +84,76 @@ test("buildTrainingHealth combines signal report and training analysis", () => {
   assert.equal(health.trainingAnalysis.metadataCoverage.tmdbRatingCoverage, 1);
   assert.equal(health.trainingAnalysis.readiness.status, "not_ready");
 });
+
+test("buildTrainingHealth counts watched ratings and library intent as taste profile data", () => {
+  const userShows = Array.from({ length: 5 }, (_, index) => ({
+    user: "user-1",
+    tvShow: `show-${index + 1}`,
+    status: "watched",
+    userRating: 8 + index / 10,
+  }));
+
+  const tvShows = userShows.map((userShow, index) => ({
+    _id: userShow.tvShow,
+    title: `Show ${index + 1}`,
+    genres: ["Drama"],
+    tmdbRating: 8,
+  }));
+
+  const health = buildTrainingHealth({
+    users: [
+      {
+        _id: "user-1",
+        name: "Admin",
+        email: "admin@example.com",
+      },
+    ],
+    tvShows: [
+      ...tvShows,
+      {
+        _id: "demo-1",
+        title: "Demo Want",
+        genres: ["Comedy"],
+        status: "want",
+      },
+      {
+        _id: "demo-2",
+        title: "Demo Watching",
+        genres: ["Comedy"],
+        status: "watching",
+      },
+    ],
+    userShows: [
+      ...userShows,
+      {
+        user: "user-1",
+        tvShow: "show-6",
+        status: "want",
+      },
+      {
+        user: "user-1",
+        tvShow: "show-7",
+        status: "watching",
+      },
+    ],
+    recommendationLogs: [],
+    userInteractions: [
+      {
+        user: "user-1",
+        eventType: "status_changed",
+      },
+    ],
+    recommendationFeedback: [],
+  });
+
+  assert.deepEqual(health.tasteProfile.summary, {
+    watchedCount: 5,
+    ratedCount: 5,
+    wantCount: 2,
+    watchingCount: 2,
+    interactionCount: 1,
+    totalTasteSignals: 10,
+  });
+  assert.equal(health.tasteProfile.readiness.status, "ready");
+  assert.equal(health.tasteProfile.readiness.reasons.length, 0);
+});

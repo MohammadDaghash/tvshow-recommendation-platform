@@ -13,7 +13,7 @@ test("formatPercent renders decimal rates as whole percentages", () => {
 });
 
 test("getReadinessLabel explains ML readiness simply", () => {
-  assert.equal(getReadinessLabel("ready"), "Ready for ML experiments");
+  assert.equal(getReadinessLabel("ready"), "Taste profile ready");
   assert.equal(getReadinessLabel("not_ready"), "Collect more signals");
 });
 
@@ -22,6 +22,12 @@ test("getHealthMetricCards summarizes the important training health numbers", ()
     signalReport: {
       summary: {
         linkedFeedbackCount: 17,
+      },
+    },
+    tasteProfile: {
+      summary: {
+        ratedCount: 55,
+        totalTasteSignals: 91,
       },
     },
     trainingAnalysis: {
@@ -37,11 +43,15 @@ test("getHealthMetricCards summarizes the important training health numbers", ()
 
   assert.deepEqual(cards, [
     {
-      label: "Training Rows",
-      value: 520,
+      label: "Rated Shows",
+      value: 55,
     },
     {
-      label: "Labelled Rows",
+      label: "Taste Signals",
+      value: 91,
+    },
+    {
+      label: "AI Feedback Labels",
       value: "14 (3%)",
     },
     {
