@@ -12,7 +12,9 @@
     "audit:data": "node scripts/auditRecommendationData.js",
     "audit:data:json": "node scripts/auditRecommendationData.js --json",
     "report:baseline": "node scripts/baselineRecommendationReport.js",
-    "report:baseline:json": "node scripts/baselineRecommendationReport.js --json"
+    "report:baseline:json": "node scripts/baselineRecommendationReport.js --json",
+    "evaluate:recommendations": "node scripts/evaluateRecommendations.js",
+    "evaluate:recommendations:json": "node scripts/evaluateRecommendations.js --json"
   },
   "keywords": [],
   "author": "",

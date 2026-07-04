@@ -52,6 +52,20 @@ test("buildBaselineReport ranks popular and TMDB-rated shows", () => {
   );
 });
 
+test("buildBaselineReport keeps show ids for evaluation matching", () => {
+  const report = buildBaselineReport(
+    {
+      tvShows,
+      userShows: [],
+    },
+    {
+      limit: 1,
+    },
+  );
+
+  assert.equal(report.topPopular[0]._id, "show-2");
+});
+
 test("buildBaselineReport ranks user-rated shows with weighted average", () => {
   const report = buildBaselineReport({
     tvShows,

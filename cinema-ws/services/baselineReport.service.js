@@ -35,6 +35,7 @@ const publicShowRating = (show) => {
 };
 
 const formatCatalogShow = (show) => ({
+  _id: toId(show._id),
   title: show.title,
   tmdbId: show.tmdbId,
   genres: show.genres || [],
