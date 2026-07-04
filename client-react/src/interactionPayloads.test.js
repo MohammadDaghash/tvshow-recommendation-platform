@@ -35,6 +35,15 @@ test("buildCardOpenEvent creates a raw card-open interaction", () => {
   });
 });
 
+test("buildCardOpenEvent can link opens to a recommendation log", () => {
+  assert.equal(
+    buildCardOpenEvent(suggestion, "ai", 2, {
+      recommendationLogId: "log-1",
+    }).recommendationLogId,
+    "log-1",
+  );
+});
+
 test("buildSuggestionImpressionEvents creates ranked impression events", () => {
   assert.deepEqual(buildSuggestionImpressionEvents([suggestion], "ai"), [
     {
@@ -51,6 +60,15 @@ test("buildSuggestionImpressionEvents creates ranked impression events", () => {
       },
     },
   ]);
+});
+
+test("buildSuggestionImpressionEvents can link impressions to a recommendation log", () => {
+  assert.equal(
+    buildSuggestionImpressionEvents([suggestion], "ai", {
+      recommendationLogId: "log-1",
+    })[0].recommendationLogId,
+    "log-1",
+  );
 });
 
 test("buildRecommendationLogPayload keeps ranked score breakdowns", () => {
@@ -97,5 +115,15 @@ test("buildRecommendationFeedbackPayload labels user actions", () => {
         recommendationScore: 91,
       },
     },
+  );
+});
+
+test("buildRecommendationFeedbackPayload can link feedback to a recommendation log", () => {
+  assert.equal(
+    buildRecommendationFeedbackPayload(suggestion, "ignored", {
+      recommendationLogId: "log-1",
+      sourcePage: "ai",
+    }).recommendationLogId,
+    "log-1",
   );
 });

@@ -30,9 +30,11 @@ import {
 import {
   buildCardOpenEvent,
   buildRecommendationFeedbackPayload,
-  buildRecommendationLogPayload,
-  buildSuggestionImpressionEvents,
 } from "./interactionPayloads";
+import {
+  buildSuggestionTrackingPayloads,
+  buildSuggestionTrackingSignature,
+} from "./recommendationTracking";
 import { useInitialData } from "./hooks/useInitialData";
 import { useLibraryViewModel } from "./hooks/useLibraryViewModel";
 import {
@@ -99,6 +101,7 @@ function App() {
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState(null);
   const trackedSuggestionSetRef = useRef("");
+  const activeRecommendationLogRef = useRef(null);
 
   const currentUser = authSession?.user || null;
   const authToken = authSession?.token || "";
@@ -200,12 +203,10 @@ function App() {
       return;
     }
 
-    const suggestionSignature = [
-      currentUser._id,
-      ...visibleAISuggestions.map(
-        (show) => show.tmdbId || show._id || show.title,
-      ),
-    ].join("|");
+    const suggestionSignature = buildSuggestionTrackingSignature({
+      userId: currentUser._id,
+      shows: visibleAISuggestions,
+    });
 
     if (trackedSuggestionSetRef.current === suggestionSignature) {
       return;
@@ -213,18 +214,31 @@ function App() {
 
     trackedSuggestionSetRef.current = suggestionSignature;
 
-    void trackInteractionBatch(
-      authToken,
-      buildSuggestionImpressionEvents(visibleAISuggestions, "ai"),
-    );
-    void trackRecommendationLog(
-      authToken,
-      buildRecommendationLogPayload({
-        page: "ai",
-        source: usesPublicDataset ? "demo" : "tmdb",
+    async function trackSuggestionSet() {
+      const { logPayload } = buildSuggestionTrackingPayloads({
         shows: visibleAISuggestions,
-      }),
-    );
+        usesPublicDataset,
+      });
+      const logResponse = await trackRecommendationLog(authToken, logPayload);
+      const recommendationLogId = logResponse?.id;
+
+      if (trackedSuggestionSetRef.current !== suggestionSignature) return;
+
+      activeRecommendationLogRef.current = {
+        id: recommendationLogId,
+        signature: suggestionSignature,
+      };
+
+      const { impressionEvents } = buildSuggestionTrackingPayloads({
+        shows: visibleAISuggestions,
+        usesPublicDataset,
+        recommendationLogId,
+      });
+
+      void trackInteractionBatch(authToken, impressionEvents);
+    }
+
+    void trackSuggestionSet();
   }, [
     activePage,
     authToken,
@@ -233,6 +247,19 @@ function App() {
     usesPublicDataset,
     visibleAISuggestions,
   ]);
+
+  const getCurrentRecommendationLogId = () => {
+    if (!canTrackPersonalData || activePage !== "ai") return undefined;
+
+    const currentSignature = buildSuggestionTrackingSignature({
+      userId: currentUser._id,
+      shows: visibleAISuggestions,
+    });
+
+    return activeRecommendationLogRef.current?.signature === currentSignature
+      ? activeRecommendationLogRef.current.id
+      : undefined;
+  };
 
   const handlePageChange = (page) => {
     setActivePage(page);
@@ -260,6 +287,8 @@ function App() {
     void trackRecommendationFeedback(
       authToken,
       buildRecommendationFeedbackPayload(show, action, {
+        recommendationLogId:
+          options.recommendationLogId ?? getCurrentRecommendationLogId(),
         sourcePage: activePage,
         ...options,
       }),
@@ -766,7 +795,9 @@ function App() {
     setDetailsShow(show);
 
     trackPersonalInteraction(
-      buildCardOpenEvent(show, activePage, getVisibleShowPosition(show)),
+      buildCardOpenEvent(show, activePage, getVisibleShowPosition(show), {
+        recommendationLogId: getCurrentRecommendationLogId(),
+      }),
     );
 
     if (show.isAISuggestion || activePage === "ai") {

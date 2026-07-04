@@ -21,10 +21,16 @@ const getScoreMetadata = (show) =>
 const getRecommendationScore = (show) =>
   show.matchScore ?? show.recommendationScore ?? 0;
 
-export function buildCardOpenEvent(show, sourcePage, position) {
+export function buildCardOpenEvent(
+  show,
+  sourcePage,
+  position,
+  { recommendationLogId } = {},
+) {
   return compactObject({
     eventType: "card_opened",
     ...getShowIdentity(show),
+    recommendationLogId,
     sourcePage,
     position,
     modelVersion: RECOMMENDATION_MODEL_VERSION,
@@ -32,11 +38,16 @@ export function buildCardOpenEvent(show, sourcePage, position) {
   });
 }
 
-export function buildSuggestionImpressionEvents(shows, sourcePage) {
+export function buildSuggestionImpressionEvents(
+  shows,
+  sourcePage,
+  { recommendationLogId } = {},
+) {
   return shows.map((show, index) =>
     compactObject({
       eventType: "suggestion_impression",
       ...getShowIdentity(show),
+      recommendationLogId,
       sourcePage,
       position: index + 1,
       modelVersion: RECOMMENDATION_MODEL_VERSION,
@@ -64,11 +75,12 @@ export function buildRecommendationLogPayload({ page, source, shows }) {
 export function buildRecommendationFeedbackPayload(
   show,
   action,
-  { rating, sourcePage } = {},
+  { rating, recommendationLogId, sourcePage } = {},
 ) {
   return compactObject({
     tvShowId: show._id,
     tmdbId: show.tmdbId,
+    recommendationLogId,
     action,
     rating,
     metadata: compactObject({
