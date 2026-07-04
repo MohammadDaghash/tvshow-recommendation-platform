@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "test": "node --test",
     "backfill:tmdb": "node scripts/backfillTMDBMetadata.js",
-    "backfill:tmdb:apply": "node scripts/backfillTMDBMetadata.js --apply"
+    "backfill:tmdb:apply": "node scripts/backfillTMDBMetadata.js --apply",
+    "audit:data": "node scripts/auditRecommendationData.js",
+    "audit:data:json": "node scripts/auditRecommendationData.js --json"
   },
   "keywords": [],
   "author": "",
