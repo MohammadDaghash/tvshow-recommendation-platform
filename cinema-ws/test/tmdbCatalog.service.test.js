@@ -16,11 +16,17 @@ test("buildTMDBCatalogUpdate keeps user-added suggestions out of watched demo da
     popularity: 12,
     tmdbRating: 7.4,
     tmdbId: 136228,
+    originalLanguage: "es",
+    originCountry: ["CO"],
+    voteCount: 321,
   });
 
   assert.equal(update.watched, false);
   assert.equal(update.userRating, null);
   assert.equal(update.recommendationScore, 0);
+  assert.equal(update.originalLanguage, "es");
+  assert.deepEqual(update.originCountry, ["CO"]);
+  assert.equal(update.voteCount, 321);
 });
 
 test("buildTMDBCatalogStatusUpdate applies admin AI suggestion actions to demo catalog state", () => {

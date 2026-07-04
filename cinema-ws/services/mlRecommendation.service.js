@@ -42,6 +42,49 @@ const normalizeTitle = (title) => {
     .trim();
 };
 
+const normalizeOriginalLanguage = (language) => {
+  return String(language || "")
+    .toLowerCase()
+    .trim();
+};
+
+const getShowOriginalLanguage = (show = {}) => {
+  return normalizeOriginalLanguage(show.originalLanguage || show.original_language);
+};
+
+const getPreferredOriginalLanguage = (watchedShows = []) => {
+  const languageWeights = new Map();
+
+  watchedShows.forEach((show) => {
+    const language = getShowOriginalLanguage(show);
+
+    if (!language) return;
+
+    const ratingWeight = Number(show.userRating) || 5;
+    languageWeights.set(
+      language,
+      (languageWeights.get(language) || 0) + ratingWeight,
+    );
+  });
+
+  if (languageWeights.size === 0) {
+    return "en";
+  }
+
+  return [...languageWeights.entries()].sort((a, b) => b[1] - a[1])[0][0];
+};
+
+const getLanguagePreferenceScore = (show, preferredOriginalLanguage = "en") => {
+  const candidateLanguage = getShowOriginalLanguage(show);
+  const preferredLanguage = normalizeOriginalLanguage(preferredOriginalLanguage);
+
+  if (!candidateLanguage || !preferredLanguage) {
+    return 70;
+  }
+
+  return candidateLanguage === preferredLanguage ? 100 : 30;
+};
+
 const createProfileVector = (watchedShows = []) => {
   if (watchedShows.length === 0) {
     return createCategoryVector([]);
@@ -127,28 +170,40 @@ const resolveSuggestionIgnoredSuggestions = ({
   return userIgnoredSuggestions;
 };
 
-const buildTMDBSuggestionRequest = ({ apiKey, favoriteGenreIds = [], page }) => {
+const buildTMDBSuggestionRequest = ({
+  apiKey,
+  favoriteGenreIds = [],
+  page,
+  preferredOriginalLanguage,
+}) => {
   const baseParams = {
     api_key: apiKey,
     language: "en-US",
     page,
+    ...(preferredOriginalLanguage
+      ? {
+          with_original_language: preferredOriginalLanguage,
+        }
+      : {}),
   };
 
   if (!favoriteGenreIds[0]) {
     return {
-      path: "/tv/top_rated",
-      params: baseParams,
+      path: "/discover/tv",
+      params: {
+        ...baseParams,
+        sort_by: "vote_average.desc",
+        "vote_count.gte": 50,
+      },
     };
   }
 
   return {
     path: "/discover/tv",
     params: {
-      api_key: apiKey,
+      ...baseParams,
       sort_by: "vote_average.desc",
       "vote_count.gte": 50,
-      language: "en-US",
-      page,
       with_genres: favoriteGenreIds[0],
     },
   };
@@ -159,6 +214,7 @@ const buildTMDBRecommendations = ({
   watchedShows = [],
   excludedTMDBIds = [],
   excludedTitles = [],
+  preferredOriginalLanguage = "en",
   limit = 20,
 }) => {
   const excludedTMDBIdSet = new Set(excludedTMDBIds.filter(Boolean));
@@ -196,15 +252,20 @@ const buildTMDBRecommendations = ({
         Math.round((show.popularity || 0) / 2),
       );
       const yearSimilarity = 80;
+      const languagePreference = getLanguagePreferenceScore(
+        show,
+        preferredOriginalLanguage,
+      );
 
       const recommendationScore = isColdStart
-        ? tmdbScore
+        ? Math.round(tmdbScore * 0.75 + languagePreference * 0.25)
         : Math.round(
-            genreSimilarity * 0.4 +
+            genreSimilarity * 0.35 +
               categoryPreference * 0.2 +
               tmdbScore * 0.2 +
               popularityScore * 0.1 +
-              yearSimilarity * 0.1,
+              yearSimilarity * 0.05 +
+              languagePreference * 0.1,
           );
 
       return {
@@ -219,6 +280,9 @@ const buildTMDBRecommendations = ({
           : "",
         overview: show.overview,
         tmdbRating: show.vote_average,
+        originalLanguage: show.original_language || null,
+        originCountry: show.origin_country || [],
+        voteCount: show.vote_count || 0,
         popularity: show.popularity,
         recommendationScore,
         matchScore: recommendationScore,
@@ -229,6 +293,7 @@ const buildTMDBRecommendations = ({
           tmdbRating: tmdbScore,
           popularity: popularityScore,
           yearSimilarity,
+          languagePreference,
         },
         similarWatchedShows: watchedShows
           .map((watchedShow) => {
@@ -244,11 +309,9 @@ const buildTMDBRecommendations = ({
       };
     });
 
-  const rankedRecommendations = isColdStart
-    ? recommendations
-    : recommendations.sort(
-        (a, b) => b.recommendationScore - a.recommendationScore,
-      );
+  const rankedRecommendations = recommendations.sort(
+    (a, b) => b.recommendationScore - a.recommendationScore,
+  );
 
   return rankedRecommendations.slice(0, limit);
 };
@@ -258,6 +321,7 @@ module.exports = {
   AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
+  getPreferredOriginalLanguage,
   getFavoriteGenreIds,
   normalizeTitle,
   resolveSuggestionExcludedShows,

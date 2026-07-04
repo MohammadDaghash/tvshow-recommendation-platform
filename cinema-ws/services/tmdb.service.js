@@ -21,6 +21,9 @@ const searchTVShows = async (title) => {
       : "",
     overview: show.overview,
     tmdbRating: show.vote_average,
+    originalLanguage: show.original_language || null,
+    originCountry: show.origin_country || [],
+    voteCount: show.vote_count || 0,
     popularity: show.popularity,
   }));
 };
@@ -46,6 +49,9 @@ const getTVShowDetailsById = async (tmdbId) => {
     overview: details.overview,
     popularity: details.popularity,
     tmdbRating: details.vote_average,
+    originalLanguage: details.original_language || null,
+    originCountry: details.origin_country || [],
+    voteCount: details.vote_count || 0,
     tmdbId: details.id,
   };
 };

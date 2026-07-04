@@ -10,6 +10,7 @@ const {
   buildTMDBRecommendations,
   buildTMDBSuggestionRequest,
   getFavoriteGenreIds,
+  getPreferredOriginalLanguage,
   resolveSuggestionExcludedShows,
   resolveSuggestionIgnoredSuggestions,
   resolveSuggestionProfileShows,
@@ -87,6 +88,7 @@ const getTMDBRecommendations = async (req, res) => {
       ignoredSuggestions,
     );
     const favoriteGenreIds = getFavoriteGenreIds(watchedShows);
+    const preferredOriginalLanguage = getPreferredOriginalLanguage(watchedShows);
 
     const tmdbPages = await Promise.all(
       Array.from(
@@ -97,6 +99,7 @@ const getTMDBRecommendations = async (req, res) => {
           apiKey: TMDB_API_KEY,
           favoriteGenreIds,
           page,
+          preferredOriginalLanguage,
         });
 
         return axios.get(`${TMDB_BASE_URL}${request.path}`, {
@@ -111,6 +114,7 @@ const getTMDBRecommendations = async (req, res) => {
       watchedShows,
       excludedTMDBIds,
       excludedTitles,
+      preferredOriginalLanguage,
       limit: AI_SUGGESTION_CANDIDATE_LIMIT,
     });
 

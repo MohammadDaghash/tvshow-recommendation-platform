@@ -2,6 +2,9 @@ const metadataFields = [
   "tmdbId",
   "tmdbRating",
   "popularity",
+  "originalLanguage",
+  "originCountry",
+  "voteCount",
   "overview",
   "genres",
   "year",
@@ -117,6 +120,7 @@ function buildTMDBMetadataUpdate(tmdbShow, existingShow = {}) {
   const tmdbId = normalizeNumber(tmdbShow.tmdbId);
   const tmdbRating = normalizeNumber(tmdbShow.tmdbRating);
   const popularity = normalizeNumber(tmdbShow.popularity);
+  const voteCount = normalizeNumber(tmdbShow.voteCount);
   const year = normalizeNumber(tmdbShow.year);
 
   if (
@@ -149,6 +153,18 @@ function buildTMDBMetadataUpdate(tmdbShow, existingShow = {}) {
 
   if (tmdbId !== null) {
     update.tmdbId = tmdbId;
+  }
+
+  if (hasValue(tmdbShow.originalLanguage)) {
+    update.originalLanguage = tmdbShow.originalLanguage;
+  }
+
+  if (Array.isArray(tmdbShow.originCountry) && tmdbShow.originCountry.length > 0) {
+    update.originCountry = tmdbShow.originCountry;
+  }
+
+  if (voteCount !== null) {
+    update.voteCount = voteCount;
   }
 
   return update;

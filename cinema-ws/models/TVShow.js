@@ -32,6 +32,19 @@ const tvShowSchema = new mongoose.Schema(
       type: Number,
     },
 
+    originalLanguage: {
+      type: String,
+    },
+
+    originCountry: {
+      type: [String],
+      default: [],
+    },
+
+    voteCount: {
+      type: Number,
+    },
+
     tmdbId: {
       type: Number,
     },

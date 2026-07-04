@@ -18,6 +18,9 @@ test("needsTMDBMetadataBackfill detects missing catalog metadata", () => {
       tmdbId: 1668,
       tmdbRating: 8.4,
       popularity: 120,
+      originalLanguage: "en",
+      originCountry: ["US"],
+      voteCount: 1000,
       overview: "A sitcom.",
     }),
     false,
@@ -110,6 +113,9 @@ test("buildTMDBMetadataUpdate keeps user and existing catalog fields safe", () =
       popularity: 240,
       tmdbRating: 8.4,
       tmdbId: 1668,
+      originalLanguage: "en",
+      originCountry: ["US"],
+      voteCount: 990,
       userRating: 2,
       watched: false,
       status: "want",
@@ -128,9 +134,12 @@ test("buildTMDBMetadataUpdate keeps user and existing catalog fields safe", () =
 
   assert.deepEqual(update, {
     overview: "Six friends in New York.",
+    originalLanguage: "en",
+    originCountry: ["US"],
     popularity: 240,
     tmdbRating: 8.4,
     tmdbId: 1668,
+    voteCount: 990,
   });
 });
 

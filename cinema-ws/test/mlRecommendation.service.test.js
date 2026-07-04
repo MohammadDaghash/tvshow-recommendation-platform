@@ -6,12 +6,13 @@ const {
   AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
+  getPreferredOriginalLanguage,
   resolveSuggestionExcludedShows,
   resolveSuggestionIgnoredSuggestions,
   resolveSuggestionProfileShows,
 } = require("../services/mlRecommendation.service");
 
-const tmdbShow = (id, voteAverage = 9) => ({
+const tmdbShow = (id, voteAverage = 9, originalLanguage = "en") => ({
   id,
   name: `TMDB Show ${id}`,
   genre_ids: [35],
@@ -19,7 +20,10 @@ const tmdbShow = (id, voteAverage = 9) => ({
   poster_path: `/poster-${id}.jpg`,
   overview: `Overview ${id}`,
   vote_average: voteAverage,
+  vote_count: 1000,
   popularity: 90 - id,
+  original_language: originalLanguage,
+  origin_country: originalLanguage === "ko" ? ["KR"] : ["US"],
 });
 
 test("AI suggestion settings keep a deep refill buffer beyond 20 visible picks", () => {
@@ -92,6 +96,48 @@ test("buildTMDBRecommendations preserves TMDB top-rated order for cold-start use
     [1, 2, 3],
   );
   assert.equal(recommendations[0].matchScore, 99);
+});
+
+test("buildTMDBRecommendations ranks preferred-language shows above higher-rated mismatches", () => {
+  const recommendations = buildTMDBRecommendations({
+    tmdbResults: [tmdbShow(1, 9.9, "ko"), tmdbShow(2, 8.6, "en")],
+    watchedShows: [],
+    excludedTMDBIds: [],
+    excludedTitles: [],
+    preferredOriginalLanguage: "en",
+    limit: 2,
+  });
+
+  assert.deepEqual(
+    recommendations.map((show) => show.tmdbId),
+    [2, 1],
+  );
+  assert.equal(recommendations[0].originalLanguage, "en");
+  assert.deepEqual(recommendations[0].originCountry, ["US"]);
+  assert.equal(recommendations[0].voteCount, 1000);
+  assert.ok(
+    recommendations[0].scoreBreakdown.languagePreference >
+      recommendations[1].scoreBreakdown.languagePreference,
+  );
+});
+
+test("getPreferredOriginalLanguage defaults to English and learns from rated history", () => {
+  assert.equal(getPreferredOriginalLanguage([]), "en");
+  assert.equal(
+    getPreferredOriginalLanguage([
+      {
+        title: "Liked Korean Drama",
+        originalLanguage: "ko",
+        userRating: 9,
+      },
+      {
+        title: "Lower Rated English Drama",
+        originalLanguage: "en",
+        userRating: 5,
+      },
+    ]),
+    "ko",
+  );
 });
 
 test("resolveSuggestionProfileShows does not fall back to public taste data for empty normal users", () => {
@@ -268,19 +314,23 @@ test("buildTMDBRecommendations refills to 20 after ignored ids are excluded", ()
   );
 });
 
-test("buildTMDBSuggestionRequest uses top-rated shows for cold-start users", () => {
+test("buildTMDBSuggestionRequest uses language-filtered discovery for cold-start users", () => {
   assert.deepEqual(
     buildTMDBSuggestionRequest({
       apiKey: "tmdb-key",
       favoriteGenreIds: [],
       page: 2,
+      preferredOriginalLanguage: "en",
     }),
     {
-      path: "/tv/top_rated",
+      path: "/discover/tv",
       params: {
+        "vote_count.gte": 50,
         api_key: "tmdb-key",
         language: "en-US",
         page: 2,
+        sort_by: "vote_average.desc",
+        with_original_language: "en",
       },
     },
   );
@@ -292,6 +342,7 @@ test("buildTMDBSuggestionRequest uses genre discovery after the user has a profi
       apiKey: "tmdb-key",
       favoriteGenreIds: [35],
       page: 1,
+      preferredOriginalLanguage: "en",
     }),
     {
       path: "/discover/tv",
@@ -302,6 +353,7 @@ test("buildTMDBSuggestionRequest uses genre discovery after the user has a profi
         language: "en-US",
         page: 1,
         with_genres: 35,
+        with_original_language: "en",
       },
     },
   );
