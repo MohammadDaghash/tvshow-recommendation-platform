@@ -17,6 +17,8 @@
     "report:signals:json": "node scripts/recommendationSignalReport.js --json",
     "export:training-data": "node scripts/exportTrainingData.js",
     "export:training-data:json": "node scripts/exportTrainingData.js --json",
+    "analyze:training-data": "node scripts/analyzeTrainingData.js",
+    "analyze:training-data:json": "node scripts/analyzeTrainingData.js --json",
     "evaluate:recommendations": "node scripts/evaluateRecommendations.js",
     "evaluate:recommendations:json": "node scripts/evaluateRecommendations.js --json"
   },
