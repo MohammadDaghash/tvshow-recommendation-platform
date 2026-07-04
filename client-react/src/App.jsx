@@ -34,11 +34,16 @@ import {
   buildCardOpenEvent,
   buildRecommendationFeedbackPayload,
 } from "./interactionPayloads";
+import { pageConfig } from "./pageConfig";
 import {
   buildSuggestionTrackingPayloads,
   buildSuggestionTrackingSignature,
   resolveCurrentRecommendationLogId,
 } from "./recommendationTracking";
+import {
+  buildLibraryTransitionMetadata,
+  getLibraryActionType,
+} from "./trackingMetadata";
 import { useInitialData } from "./hooks/useInitialData";
 import { useLibraryViewModel } from "./hooks/useLibraryViewModel";
 import {
@@ -47,29 +52,6 @@ import {
   saveStoredSession,
 } from "./sessionStorage";
 import "./App.css";
-
-const pageConfig = {
-  watched: {
-    label: "Watched",
-    emptyTitle: "No watched shows yet",
-    emptyText: "Mark shows as watched and rate them to improve your suggestions.",
-  },
-  want: {
-    label: "Want to Watch",
-    emptyTitle: "Your watchlist is empty",
-    emptyText: "Add shows from AI Suggestions or move shows here for later.",
-  },
-  watching: {
-    label: "Currently Watching",
-    emptyTitle: "Nothing in progress",
-    emptyText: "Start watching a show to keep it visible while you work through it.",
-  },
-  ai: {
-    label: "AI Suggestions",
-    emptyTitle: "No AI suggestions right now",
-    emptyText: "Rate more watched shows or try again after adding more to your list.",
-  },
-};
 
 function App() {
   const [authSession, setAuthSession] = useState(readStoredSession);
@@ -303,6 +285,9 @@ function App() {
         authToken,
         buildCardOpenEvent(show, activePage, position, {
           recommendationLogId,
+          metadata: buildActionMetadata(show, {
+            actionType: "card_opened",
+          }),
         }),
       );
     })();
@@ -336,6 +321,16 @@ function App() {
     if (status === "watching") return "accepted_watching";
     return "accepted_want";
   };
+
+  const getPreviousTrackingStatus = (show) =>
+    show.isAISuggestion || activePage === "ai" ? "ai_suggestion" : show.status || "none";
+
+  const buildActionMetadata = (show, metadata = {}) =>
+    buildLibraryTransitionMetadata(show, {
+      sourcePage: activePage,
+      previousStatus: getPreviousTrackingStatus(show),
+      ...metadata,
+    });
 
   const openAuthModal = (mode, message = "") => {
     setAuthModal(mode);
@@ -445,6 +440,11 @@ function App() {
     if (!requireUser()) return;
 
     try {
+      const actionMetadata = buildActionMetadata(show, {
+        nextStatus: status,
+        actionType: getLibraryActionType(status),
+        rating: userRating,
+      });
       const response = await fetch(
         apiUrl(
           isAdminCatalogMode
@@ -460,6 +460,7 @@ function App() {
             status,
             userRating,
             sourcePage: activePage,
+            metadata: actionMetadata,
           }),
         },
       );
@@ -469,6 +470,7 @@ function App() {
       if (status === "watched") {
         trackPersonalRecommendationFeedback(show, "rated", {
           rating: userRating,
+          metadata: actionMetadata,
         });
       }
       setDetailsShow(null);
@@ -526,11 +528,21 @@ function App() {
     if (!requireUser()) return;
 
     try {
+      const actionMetadata = buildActionMetadata(show, {
+        nextStatus: "none",
+        actionType: "remove_from_library",
+      });
       const response = await fetch(
         apiUrl(`/api/recommendations/${show._id}/library`),
         {
           method: "DELETE",
-          headers: authHeaders(authToken),
+          headers: authHeaders(authToken, {
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({
+            sourcePage: activePage,
+            metadata: actionMetadata,
+          }),
         },
       );
 
@@ -551,6 +563,12 @@ function App() {
     if (!requireUser()) return;
 
     try {
+      const actionMetadata = buildActionMetadata(show, {
+        previousStatus: "ai_suggestion",
+        nextStatus: status,
+        actionType: getLibraryActionType(status),
+        rating: userRating,
+      });
       const recommendationLogIdPromise = getCurrentRecommendationLogId();
       const response = await fetch(apiUrl("/api/recommendations/from-tmdb"), {
         method: "POST",
@@ -562,10 +580,7 @@ function App() {
           status,
           userRating,
           sourcePage: activePage,
-          metadata: {
-            matchScore: show.matchScore,
-            recommendationScore: show.recommendationScore,
-          },
+          metadata: actionMetadata,
         }),
       });
 
@@ -580,6 +595,7 @@ function App() {
         {
           recommendationLogId,
           rating: userRating,
+          metadata: actionMetadata,
         },
       );
       setDetailsShow(null);
@@ -599,6 +615,11 @@ function App() {
     if (!requireUser()) return;
 
     try {
+      const actionMetadata = buildActionMetadata(show, {
+        previousStatus: "ai_suggestion",
+        nextStatus: "ignored",
+        actionType: "not_interested",
+      });
       const recommendationLogIdPromise = getCurrentRecommendationLogId();
       const response = await fetch(apiUrl("/api/ignored-suggestions"), {
         method: "POST",
@@ -609,10 +630,7 @@ function App() {
           tmdbId: show.tmdbId,
           title: show.title,
           sourcePage: activePage,
-          metadata: {
-            matchScore: show.matchScore,
-            recommendationScore: show.recommendationScore,
-          },
+          metadata: actionMetadata,
         }),
       });
 
@@ -628,6 +646,7 @@ function App() {
 
       trackPersonalRecommendationFeedback(show, "ignored", {
         recommendationLogId,
+        metadata: actionMetadata,
       });
       setDetailsShow(null);
 
@@ -847,7 +866,11 @@ function App() {
     trackPersonalCardOpen(show, getVisibleShowPosition(show));
 
     if (show.isAISuggestion || activePage === "ai") {
-      trackPersonalRecommendationFeedback(show, "opened");
+      trackPersonalRecommendationFeedback(show, "opened", {
+        metadata: buildActionMetadata(show, {
+          actionType: "card_opened",
+        }),
+      });
     }
   };
 

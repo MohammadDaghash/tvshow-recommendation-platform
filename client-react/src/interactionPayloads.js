@@ -1,3 +1,5 @@
+import { buildShowTrackingMetadata } from "./trackingMetadata.js";
+
 export const RECOMMENDATION_MODEL_VERSION = "baseline-v1";
 
 const compactObject = (value) =>
@@ -12,12 +14,6 @@ const getShowIdentity = (show) =>
     title: show.title,
   });
 
-const getScoreMetadata = (show) =>
-  compactObject({
-    matchScore: show.matchScore,
-    recommendationScore: show.recommendationScore,
-  });
-
 const getRecommendationScore = (show) =>
   show.matchScore ?? show.recommendationScore ?? 0;
 
@@ -25,7 +21,7 @@ export function buildCardOpenEvent(
   show,
   sourcePage,
   position,
-  { recommendationLogId } = {},
+  { recommendationLogId, metadata } = {},
 ) {
   return compactObject({
     eventType: "card_opened",
@@ -34,7 +30,7 @@ export function buildCardOpenEvent(
     sourcePage,
     position,
     modelVersion: RECOMMENDATION_MODEL_VERSION,
-    metadata: getScoreMetadata(show),
+    metadata: buildShowTrackingMetadata(show, metadata),
   });
 }
 
@@ -51,7 +47,7 @@ export function buildSuggestionImpressionEvents(
       sourcePage,
       position: index + 1,
       modelVersion: RECOMMENDATION_MODEL_VERSION,
-      metadata: getScoreMetadata(show),
+      metadata: buildShowTrackingMetadata(show),
     }),
   );
 }
@@ -75,7 +71,7 @@ export function buildRecommendationLogPayload({ page, source, shows }) {
 export function buildRecommendationFeedbackPayload(
   show,
   action,
-  { rating, recommendationLogId, sourcePage } = {},
+  { rating, recommendationLogId, sourcePage, metadata } = {},
 ) {
   return compactObject({
     tvShowId: show._id,
@@ -83,9 +79,9 @@ export function buildRecommendationFeedbackPayload(
     recommendationLogId,
     action,
     rating,
-    metadata: compactObject({
+    metadata: buildShowTrackingMetadata(show, {
       sourcePage,
-      ...getScoreMetadata(show),
+      ...metadata,
     }),
   });
 }

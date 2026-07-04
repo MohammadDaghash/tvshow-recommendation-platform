@@ -44,6 +44,42 @@ test("buildCardOpenEvent can link opens to a recommendation log", () => {
   );
 });
 
+test("buildCardOpenEvent includes show metadata for future training data", () => {
+  assert.deepEqual(
+    buildCardOpenEvent(
+      {
+        ...suggestion,
+        genres: ["Drama & Romance"],
+        status: "want",
+        tmdbRating: 8.8,
+        originalLanguage: "en",
+        originCountry: ["US"],
+        voteCount: 1200,
+      },
+      "want",
+      1,
+      {
+        metadata: {
+          actionType: "card_opened",
+          previousStatus: "want",
+        },
+      },
+    ).metadata,
+    {
+      actionType: "card_opened",
+      previousStatus: "want",
+      matchScore: 93,
+      recommendationScore: 91,
+      tmdbRating: 8.8,
+      status: "want",
+      genres: ["Drama & Romance"],
+      originalLanguage: "en",
+      originCountry: ["US"],
+      voteCount: 1200,
+    },
+  );
+});
+
 test("buildSuggestionImpressionEvents creates ranked impression events", () => {
   assert.deepEqual(buildSuggestionImpressionEvents([suggestion], "ai"), [
     {
@@ -125,5 +161,39 @@ test("buildRecommendationFeedbackPayload can link feedback to a recommendation l
       sourcePage: "ai",
     }).recommendationLogId,
     "log-1",
+  );
+});
+
+test("buildRecommendationFeedbackPayload merges action metadata with show metadata", () => {
+  assert.deepEqual(
+    buildRecommendationFeedbackPayload(
+      {
+        ...suggestion,
+        status: "watching",
+        tmdbRating: 8.947,
+        userRating: 8.7,
+      },
+      "accepted_watched",
+      {
+        rating: 9.4,
+        sourcePage: "watching",
+        metadata: {
+          previousStatus: "watching",
+          nextStatus: "watched",
+          actionType: "move_to_watched",
+        },
+      },
+    ).metadata,
+    {
+      sourcePage: "watching",
+      previousStatus: "watching",
+      nextStatus: "watched",
+      actionType: "move_to_watched",
+      matchScore: 93,
+      recommendationScore: 91,
+      tmdbRating: 8.947,
+      userRating: 8.7,
+      status: "watching",
+    },
   );
 });
