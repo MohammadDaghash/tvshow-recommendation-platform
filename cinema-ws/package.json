@@ -10,7 +10,9 @@
     "backfill:tmdb": "node scripts/backfillTMDBMetadata.js",
     "backfill:tmdb:apply": "node scripts/backfillTMDBMetadata.js --apply",
     "audit:data": "node scripts/auditRecommendationData.js",
-    "audit:data:json": "node scripts/auditRecommendationData.js --json"
+    "audit:data:json": "node scripts/auditRecommendationData.js --json",
+    "report:baseline": "node scripts/baselineRecommendationReport.js",
+    "report:baseline:json": "node scripts/baselineRecommendationReport.js --json"
   },
   "keywords": [],
   "author": "",
