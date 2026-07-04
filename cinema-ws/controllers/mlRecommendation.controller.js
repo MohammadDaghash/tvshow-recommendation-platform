@@ -9,6 +9,8 @@ const {
   buildTMDBRecommendations,
   buildTMDBSuggestionRequest,
   getFavoriteGenreIds,
+  resolveSuggestionExcludedShows,
+  resolveSuggestionIgnoredSuggestions,
   resolveSuggestionProfileShows,
 } = require("../services/mlRecommendation.service");
 
@@ -70,12 +72,18 @@ const getTMDBRecommendations = async (req, res) => {
       req.user && req.user.role !== "admin"
         ? await UserIgnoredSuggestion.find({ user: req.user._id })
         : [];
-    const ignoredSuggestions = [
-      ...globalIgnoredSuggestions,
-      ...userIgnoredSuggestions,
-    ];
+    const ignoredSuggestions = resolveSuggestionIgnoredSuggestions({
+      user: req.user,
+      globalIgnoredSuggestions,
+      userIgnoredSuggestions,
+    });
+    const excludedShows = resolveSuggestionExcludedShows({
+      user: req.user,
+      catalogShows: allExistingShows,
+      userLibraryShows,
+    });
     const { excludedTMDBIds, excludedTitles } = collectExcludedValues(
-      [...allExistingShows, ...userLibraryShows],
+      excludedShows,
       ignoredSuggestions,
     );
     const favoriteGenreIds = getFavoriteGenreIds(watchedShows);

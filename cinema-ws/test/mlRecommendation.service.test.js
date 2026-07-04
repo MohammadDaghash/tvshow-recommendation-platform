@@ -5,6 +5,8 @@ const {
   AI_SUGGESTION_CANDIDATE_LIMIT,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
+  resolveSuggestionExcludedShows,
+  resolveSuggestionIgnoredSuggestions,
   resolveSuggestionProfileShows,
 } = require("../services/mlRecommendation.service");
 
@@ -67,6 +69,29 @@ test("buildTMDBRecommendations excludes candidates by normalized title", () => {
   );
 });
 
+test("buildTMDBRecommendations preserves TMDB top-rated order for cold-start users", () => {
+  const recommendations = buildTMDBRecommendations({
+    tmdbResults: [
+      tmdbShow(1, 9.9),
+      {
+        ...tmdbShow(2, 9.8),
+        popularity: 200,
+      },
+      tmdbShow(3, 9.7),
+    ],
+    watchedShows: [],
+    excludedTMDBIds: [],
+    excludedTitles: [],
+    limit: 3,
+  });
+
+  assert.deepEqual(
+    recommendations.map((show) => show.tmdbId),
+    [1, 2, 3],
+  );
+  assert.equal(recommendations[0].matchScore, 99);
+});
+
 test("resolveSuggestionProfileShows does not fall back to public taste data for empty normal users", () => {
   const catalogWatchedShows = [
     {
@@ -115,6 +140,87 @@ test("resolveSuggestionProfileShows keeps public taste data for visitors and adm
       catalogWatchedShows,
     }),
     catalogWatchedShows,
+  );
+});
+
+test("resolveSuggestionExcludedShows keeps normal users separate from the admin catalog", () => {
+  const catalogShows = [
+    {
+      title: "Admin Catalog Show",
+      tmdbId: 1,
+    },
+  ];
+  const userLibraryShows = [
+    {
+      title: "Private User Show",
+      tmdbId: 2,
+    },
+  ];
+
+  assert.deepEqual(
+    resolveSuggestionExcludedShows({
+      user: {
+        role: "user",
+      },
+      catalogShows,
+      userLibraryShows,
+    }),
+    userLibraryShows,
+  );
+});
+
+test("resolveSuggestionExcludedShows keeps demo/admin exclusions public", () => {
+  const catalogShows = [
+    {
+      title: "Public Catalog Show",
+      tmdbId: 1,
+    },
+  ];
+
+  assert.deepEqual(
+    resolveSuggestionExcludedShows({
+      user: null,
+      catalogShows,
+      userLibraryShows: [],
+    }),
+    catalogShows,
+  );
+
+  assert.deepEqual(
+    resolveSuggestionExcludedShows({
+      user: {
+        role: "admin",
+      },
+      catalogShows,
+      userLibraryShows: [],
+    }),
+    catalogShows,
+  );
+});
+
+test("resolveSuggestionIgnoredSuggestions keeps normal user feedback private", () => {
+  const globalIgnoredSuggestions = [
+    {
+      title: "Globally Hidden Show",
+      tmdbId: 1,
+    },
+  ];
+  const userIgnoredSuggestions = [
+    {
+      title: "User Hidden Show",
+      tmdbId: 2,
+    },
+  ];
+
+  assert.deepEqual(
+    resolveSuggestionIgnoredSuggestions({
+      user: {
+        role: "user",
+      },
+      globalIgnoredSuggestions,
+      userIgnoredSuggestions,
+    }),
+    userIgnoredSuggestions,
   );
 });
 

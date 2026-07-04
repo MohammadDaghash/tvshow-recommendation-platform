@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getLibraryActionLabels,
   getLibraryCardStatusText,
+  getSuggestionBadgeText,
 } from "./cardPresentation.js";
 
 test("getLibraryCardStatusText omits duplicate match score text for want-to-watch cards", () => {
@@ -53,4 +54,14 @@ test("getLibraryActionLabels returns page actions without catalog labels", () =>
     "Move to Watched",
     "Delete",
   ]);
+});
+
+test("getSuggestionBadgeText uses TMDB rating instead of duplicate match score", () => {
+  assert.equal(
+    getSuggestionBadgeText({
+      matchScore: 92,
+      tmdbRating: 8.734,
+    }),
+    "TMDB 8.7",
+  );
 });

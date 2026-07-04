@@ -98,6 +98,30 @@ const resolveSuggestionProfileShows = ({
   return personalizedWatchedShows;
 };
 
+const resolveSuggestionExcludedShows = ({
+  user,
+  catalogShows = [],
+  userLibraryShows = [],
+}) => {
+  if (!user || user.role === "admin") {
+    return catalogShows;
+  }
+
+  return userLibraryShows;
+};
+
+const resolveSuggestionIgnoredSuggestions = ({
+  user,
+  globalIgnoredSuggestions = [],
+  userIgnoredSuggestions = [],
+}) => {
+  if (!user || user.role === "admin") {
+    return globalIgnoredSuggestions;
+  }
+
+  return userIgnoredSuggestions;
+};
+
 const buildTMDBSuggestionRequest = ({ apiKey, favoriteGenreIds = [], page }) => {
   const baseParams = {
     api_key: apiKey,
@@ -137,8 +161,9 @@ const buildTMDBRecommendations = ({
     excludedTitles.map(normalizeTitle).filter(Boolean),
   );
   const userProfileVector = createProfileVector(watchedShows);
+  const isColdStart = watchedShows.length === 0;
 
-  return tmdbResults
+  const recommendations = tmdbResults
     .filter((show) => {
       return (
         !excludedTMDBIdSet.has(show.id) &&
@@ -167,13 +192,15 @@ const buildTMDBRecommendations = ({
       );
       const yearSimilarity = 80;
 
-      const recommendationScore = Math.round(
-        genreSimilarity * 0.4 +
-          categoryPreference * 0.2 +
-          tmdbScore * 0.2 +
-          popularityScore * 0.1 +
-          yearSimilarity * 0.1,
-      );
+      const recommendationScore = isColdStart
+        ? tmdbScore
+        : Math.round(
+            genreSimilarity * 0.4 +
+              categoryPreference * 0.2 +
+              tmdbScore * 0.2 +
+              popularityScore * 0.1 +
+              yearSimilarity * 0.1,
+          );
 
       return {
         tmdbId: show.id,
@@ -210,9 +237,15 @@ const buildTMDBRecommendations = ({
           .sort((a, b) => b.similarity - a.similarity)
           .slice(0, 3),
       };
-    })
-    .sort((a, b) => b.recommendationScore - a.recommendationScore)
-    .slice(0, limit);
+    });
+
+  const rankedRecommendations = isColdStart
+    ? recommendations
+    : recommendations.sort(
+        (a, b) => b.recommendationScore - a.recommendationScore,
+      );
+
+  return rankedRecommendations.slice(0, limit);
 };
 
 module.exports = {
@@ -221,5 +254,7 @@ module.exports = {
   buildTMDBRecommendations,
   getFavoriteGenreIds,
   normalizeTitle,
+  resolveSuggestionExcludedShows,
+  resolveSuggestionIgnoredSuggestions,
   resolveSuggestionProfileShows,
 };

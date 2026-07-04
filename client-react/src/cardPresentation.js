@@ -10,6 +10,16 @@ export function getLibraryCardStatusText(show) {
   return null;
 }
 
+export function getSuggestionBadgeText(show) {
+  const rating = Number(show.tmdbRating);
+
+  if (!Number.isFinite(rating) || rating <= 0) {
+    return "TMDB --";
+  }
+
+  return `TMDB ${rating.toFixed(1)}`;
+}
+
 export function getLibraryActionLabels(status) {
   if (status === "watched") {
     return [

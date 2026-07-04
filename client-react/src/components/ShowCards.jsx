@@ -1,4 +1,7 @@
-import { getLibraryCardStatusText } from "../cardPresentation";
+import {
+  getLibraryCardStatusText,
+  getSuggestionBadgeText,
+} from "../cardPresentation";
 
 export function LibraryCard({ show, formatGenres, onSelect }) {
   const cardStatusText = getLibraryCardStatusText(show);
@@ -50,7 +53,7 @@ export function SuggestionCard({
     >
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />
-        <span className="card-badge score">{show.matchScore}%</span>
+        <span className="card-badge rating">{getSuggestionBadgeText(show)}</span>
       </div>
 
       <div className="tv-card-body">
