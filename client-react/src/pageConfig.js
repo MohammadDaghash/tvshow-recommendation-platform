@@ -19,4 +19,8 @@ export const pageConfig = {
     emptyTitle: "No AI suggestions right now",
     emptyText: "Rate more watched shows or try again after adding more to your list.",
   },
+  training: {
+    label: "Training Health",
+    adminOnly: true,
+  },
 };

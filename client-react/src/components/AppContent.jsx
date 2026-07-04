@@ -1,3 +1,5 @@
+import { TrainingHealthPanel } from "./TrainingHealthPanel";
+
 export function AppContent({
   activePage,
   allGenres,
@@ -25,6 +27,11 @@ export function AppContent({
   watchedShows,
   watchingShows,
 }) {
+  const isTrainingPage = activePage === "training";
+  const visiblePageEntries = Object.entries(pageConfig).filter(
+    ([, config]) => !config.adminOnly || isAdmin,
+  );
+
   return (
     <>
       <header className="hero-panel">
@@ -97,14 +104,16 @@ export function AppContent({
       <main className="content-shell">
         <div className="control-panel">
           <div className="tabs">
-            {Object.entries(pageConfig).map(([page, config]) => (
+            {visiblePageEntries.map(([page, config]) => (
               <button
                 className={activePage === page ? "tab active-tab" : "tab"}
                 key={page}
                 onClick={() => handlePageChange(page)}
               >
                 {config.label}
-                <span className="page-count">{pageCounts[page]}</span>
+                {pageCounts[page] !== undefined && (
+                  <span className="page-count">{pageCounts[page]}</span>
+                )}
               </button>
             ))}
 
@@ -116,29 +125,34 @@ export function AppContent({
             </button>
           </div>
 
-          <div className="filters">
-            <input
-              type="text"
-              placeholder="Search TV shows..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="search-input"
-            />
+          {!isTrainingPage && (
+            <div className="filters">
+              <input
+                type="text"
+                placeholder="Search TV shows..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="search-input"
+              />
 
-            <select
-              value={selectedGenre}
-              onChange={(event) => setSelectedGenre(event.target.value)}
-              className="genre-select"
-            >
-              {allGenres.map((genre) => (
-                <option value={genre} key={genre}>
-                  {genre}
-                </option>
-              ))}
-            </select>
-          </div>
+              <select
+                value={selectedGenre}
+                onChange={(event) => setSelectedGenre(event.target.value)}
+                className="genre-select"
+              >
+                {allGenres.map((genre) => (
+                  <option value={genre} key={genre}>
+                    {genre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
+        {isTrainingPage ? (
+          <TrainingHealthPanel />
+        ) : (
         <section className="show-section">
           <h2 className="section-title">{pageConfig[activePage].label}</h2>
           {isDemoMode && (
@@ -205,6 +219,7 @@ export function AppContent({
             </div>
           )}
         </section>
+        )}
       </main>
     </>
   );

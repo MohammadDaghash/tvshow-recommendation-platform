@@ -146,6 +146,17 @@
     flex-direction: column;
   }
 
+  .training-health-panel {
+    padding: 16px;
+  }
+
+  .training-health-header,
+  .training-health-grid,
+  .training-health-columns,
+  .training-health-row {
+    grid-template-columns: 1fr;
+  }
+
   .carousel-row {
     gap: 14px;
     margin-right: -12px;
