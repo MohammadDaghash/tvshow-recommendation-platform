@@ -86,6 +86,45 @@ const getFavoriteGenreIds = (watchedShows = []) => {
     .slice(0, 3);
 };
 
+const resolveSuggestionProfileShows = ({
+  user,
+  personalizedWatchedShows = [],
+  catalogWatchedShows = [],
+}) => {
+  if (!user || user.role === "admin") {
+    return catalogWatchedShows;
+  }
+
+  return personalizedWatchedShows;
+};
+
+const buildTMDBSuggestionRequest = ({ apiKey, favoriteGenreIds = [], page }) => {
+  const baseParams = {
+    api_key: apiKey,
+    language: "en-US",
+    page,
+  };
+
+  if (!favoriteGenreIds[0]) {
+    return {
+      path: "/tv/top_rated",
+      params: baseParams,
+    };
+  }
+
+  return {
+    path: "/discover/tv",
+    params: {
+      api_key: apiKey,
+      sort_by: "vote_average.desc",
+      "vote_count.gte": 50,
+      language: "en-US",
+      page,
+      with_genres: favoriteGenreIds[0],
+    },
+  };
+};
+
 const buildTMDBRecommendations = ({
   tmdbResults = [],
   watchedShows = [],
@@ -178,7 +217,9 @@ const buildTMDBRecommendations = ({
 
 module.exports = {
   AI_SUGGESTION_CANDIDATE_LIMIT,
+  buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
   getFavoriteGenreIds,
   normalizeTitle,
+  resolveSuggestionProfileShows,
 };

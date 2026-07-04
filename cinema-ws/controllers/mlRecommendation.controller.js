@@ -7,7 +7,9 @@ const recommendationService = require("../services/recommendation.service");
 const {
   AI_SUGGESTION_CANDIDATE_LIMIT,
   buildTMDBRecommendations,
+  buildTMDBSuggestionRequest,
   getFavoriteGenreIds,
+  resolveSuggestionProfileShows,
 } = require("../services/mlRecommendation.service");
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -25,12 +27,14 @@ const getPersonalizedWatchedShows = async (user) => {
 
 const getProfileWatchedShows = async (user) => {
   const personalizedWatchedShows = await getPersonalizedWatchedShows(user);
+  const catalogWatchedShows =
+    !user || user.role === "admin" ? await TVShow.find({ watched: true }) : [];
 
-  if (personalizedWatchedShows.length > 0) {
-    return personalizedWatchedShows;
-  }
-
-  return TVShow.find({ watched: true });
+  return resolveSuggestionProfileShows({
+    user,
+    personalizedWatchedShows,
+    catalogWatchedShows,
+  });
 };
 
 const getUserLibraryShows = async (user) => {
@@ -77,22 +81,17 @@ const getTMDBRecommendations = async (req, res) => {
     const favoriteGenreIds = getFavoriteGenreIds(watchedShows);
 
     const tmdbPages = await Promise.all(
-      [1, 2, 3, 4, 5].map((page) =>
-        axios.get(`${TMDB_BASE_URL}/discover/tv`, {
-          params: {
-            api_key: TMDB_API_KEY,
-            sort_by: "vote_average.desc",
-            "vote_count.gte": 50,
-            language: "en-US",
-            page,
-            ...(favoriteGenreIds[0]
-              ? {
-                  with_genres: favoriteGenreIds[0],
-                }
-              : {}),
-          },
-        }),
-      ),
+      [1, 2, 3, 4, 5].map((page) => {
+        const request = buildTMDBSuggestionRequest({
+          apiKey: TMDB_API_KEY,
+          favoriteGenreIds,
+          page,
+        });
+
+        return axios.get(`${TMDB_BASE_URL}${request.path}`, {
+          params: request.params,
+        });
+      }),
     );
 
     const tmdbResults = tmdbPages.flatMap((response) => response.data.results);
