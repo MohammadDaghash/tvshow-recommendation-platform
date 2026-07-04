@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   AI_SUGGESTION_CANDIDATE_LIMIT,
+  AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
   resolveSuggestionExcludedShows,
@@ -21,9 +22,10 @@ const tmdbShow = (id, voteAverage = 9) => ({
   popularity: 90 - id,
 });
 
-test("AI_SUGGESTION_CANDIDATE_LIMIT keeps an extra refill buffer beyond 20 visible picks", () => {
-  assert.equal(AI_SUGGESTION_CANDIDATE_LIMIT, 40);
-  assert.ok(AI_SUGGESTION_CANDIDATE_LIMIT > 20);
+test("AI suggestion settings keep a deep refill buffer beyond 20 visible picks", () => {
+  assert.equal(AI_SUGGESTION_CANDIDATE_LIMIT, 80);
+  assert.equal(AI_SUGGESTION_FETCH_PAGE_COUNT, 10);
+  assert.ok(AI_SUGGESTION_CANDIDATE_LIMIT >= 20 * 4);
 });
 
 test("buildTMDBRecommendations filters excluded candidates before limiting to 20", () => {

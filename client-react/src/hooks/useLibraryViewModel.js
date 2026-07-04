@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { getTopAISuggestions } from "../aiSuggestions";
 import {
-  buildDemoAISuggestions,
-  buildDemoLibrary,
-} from "../demoLibrary";
+  buildAISuggestionCandidates,
+  getTopAISuggestions,
+} from "../aiSuggestions";
+import { buildDemoLibrary } from "../demoLibrary";
 import {
   getFilterGenres,
   getNormalizedDisplayGenres,
@@ -12,6 +12,7 @@ import {
   shouldUsePublicDataset,
 } from "../displayLibrary";
 import { getLeadCarouselConfig } from "../pageLayout";
+import { TOP_TV_FALLBACK_SUGGESTIONS } from "../topTVFallbackSuggestions";
 
 export function useLibraryViewModel({
   activePage,
@@ -54,10 +55,12 @@ export function useLibraryViewModel({
 
   const visibleAISuggestions = useMemo(
     () => {
-      const suggestionSource =
-        mlSuggestions.length > 0 || !usesPublicDataset
-          ? mlSuggestions
-          : buildDemoAISuggestions(recommendations);
+      const suggestionSource = buildAISuggestionCandidates({
+        fallbackSuggestions: TOP_TV_FALLBACK_SUGGESTIONS,
+        mlSuggestions,
+        recommendations,
+        usesPublicDataset,
+      });
 
       return getTopAISuggestions(suggestionSource, ignoredSuggestionIds);
     },

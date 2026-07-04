@@ -4,7 +4,8 @@ const {
 } = require("../utils/recommendation.utils");
 
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
-const AI_SUGGESTION_CANDIDATE_LIMIT = 40;
+const AI_SUGGESTION_CANDIDATE_LIMIT = 80;
+const AI_SUGGESTION_FETCH_PAGE_COUNT = 10;
 
 const genreMap = {
   Comedy: 35,
@@ -254,6 +255,7 @@ const buildTMDBRecommendations = ({
 
 module.exports = {
   AI_SUGGESTION_CANDIDATE_LIMIT,
+  AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
   getFavoriteGenreIds,

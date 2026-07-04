@@ -6,6 +6,7 @@ const UserIgnoredSuggestion = require("../models/UserIgnoredSuggestion");
 const recommendationService = require("../services/recommendation.service");
 const {
   AI_SUGGESTION_CANDIDATE_LIMIT,
+  AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBRecommendations,
   buildTMDBSuggestionRequest,
   getFavoriteGenreIds,
@@ -88,7 +89,10 @@ const getTMDBRecommendations = async (req, res) => {
     const favoriteGenreIds = getFavoriteGenreIds(watchedShows);
 
     const tmdbPages = await Promise.all(
-      [1, 2, 3, 4, 5].map((page) => {
+      Array.from(
+        { length: AI_SUGGESTION_FETCH_PAGE_COUNT },
+        (_, index) => index + 1,
+      ).map((page) => {
         const request = buildTMDBSuggestionRequest({
           apiKey: TMDB_API_KEY,
           favoriteGenreIds,
