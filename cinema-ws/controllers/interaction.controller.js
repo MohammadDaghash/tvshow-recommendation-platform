@@ -6,14 +6,19 @@ const {
   recordRecommendationFeedback,
   recordRecommendationLog,
 } = require("../services/recommendationData.service");
+const {
+  shouldRecordTasteSignals,
+  withRecommendationSignalContext,
+} = require("../services/recommendationSignalContext.service");
 
 const shouldSkipTracking = (user) => {
-  return !user || user.role === "admin";
+  return !shouldRecordTasteSignals(user);
 };
 
 const withUser = (req, payload) => ({
-  userId: req.user._id,
   ...payload,
+  userId: req.user._id,
+  metadata: withRecommendationSignalContext(req.user, payload.metadata),
 });
 
 const recordInteraction = async (req, res) => {

@@ -2,12 +2,20 @@ export const shouldUsePublicDataset = (user) => {
   return !user || user.role === "admin";
 };
 
+export const canTrackRecommendationData = (session) => {
+  return Boolean(session?.token && session?.user);
+};
+
 export const getRecommendationFetchToken = (session) => {
   if (!session?.token || shouldUsePublicDataset(session.user)) {
     return "";
   }
 
   return session.token;
+};
+
+export const getIgnoredSuggestionFetchToken = (session) => {
+  return session?.token || "";
 };
 
 export const CANONICAL_DISPLAY_GENRES = [

@@ -282,3 +282,52 @@ test("buildTrainingDataExport sorts newest recommendation logs first", () => {
     ["New First", "New Second", "Old First"],
   );
 });
+
+test("buildTrainingDataExport exposes actor role and data scope from linked signals", () => {
+  const exportData = buildTrainingDataExport({
+    recommendationLogs: [
+      {
+        _id: "log-1",
+        user: "admin-1",
+        modelVersion: "baseline-v1",
+        source: "demo",
+        page: "ai",
+        items: [
+          {
+            tmdbId: 95396,
+            title: "Severance",
+            position: 1,
+            score: 94,
+          },
+        ],
+      },
+    ],
+    userInteractions: [
+      {
+        user: "admin-1",
+        recommendationLog: "log-1",
+        tmdbId: 95396,
+        eventType: "suggestion_impression",
+        metadata: {
+          actorRole: "admin",
+          dataScope: "demo",
+        },
+      },
+    ],
+    recommendationFeedback: [
+      {
+        user: "admin-1",
+        recommendationLog: "log-1",
+        tmdbId: 95396,
+        action: "ignored",
+        metadata: {
+          actorRole: "admin",
+          dataScope: "demo",
+        },
+      },
+    ],
+  });
+
+  assert.equal(exportData.rows[0].actorRole, "admin");
+  assert.equal(exportData.rows[0].dataScope, "demo");
+});

@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 
 const interactionEventTypes = [
+  "catalog_deleted",
+  "catalog_imported",
   "status_changed",
   "rating_submitted",
   "suggestion_accepted",

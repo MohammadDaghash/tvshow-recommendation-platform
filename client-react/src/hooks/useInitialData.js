@@ -1,6 +1,9 @@
 import { useCallback, useState } from "react";
 import { apiUrl } from "../api";
-import { getRecommendationFetchToken } from "../displayLibrary";
+import {
+  getIgnoredSuggestionFetchToken,
+  getRecommendationFetchToken,
+} from "../displayLibrary";
 import {
   authHeaders,
   fetchIgnoredSuggestionIds,
@@ -17,7 +20,7 @@ export function useInitialData(authSession) {
     error: "",
   });
 
-  const loadAppData = useCallback(async (token = "") => {
+  const loadAppData = useCallback(async (token = "", ignoredToken = token) => {
     setInitialLoad({
       status: "loading",
       error: "",
@@ -27,7 +30,7 @@ export function useInitialData(authSession) {
       const [{ nextRecommendations, nextMlSuggestions }, nextIgnoredIds] =
         await Promise.all([
           fetchInitialData(token),
-          fetchIgnoredSuggestionIds(token),
+          fetchIgnoredSuggestionIds(ignoredToken),
         ]);
 
       setRecommendations(nextRecommendations);
@@ -70,6 +73,13 @@ export function useInitialData(authSession) {
     setMlSuggestions(data);
   }, [authSession]);
 
+  const refreshIgnoredSuggestions = useCallback(async () => {
+    const ignoredToken = getIgnoredSuggestionFetchToken(authSession);
+    const nextIgnoredIds = await fetchIgnoredSuggestionIds(ignoredToken);
+
+    setIgnoredSuggestionIds(nextIgnoredIds);
+  }, [authSession]);
+
   return {
     ignoredSuggestionIds,
     initialLoad,
@@ -78,6 +88,7 @@ export function useInitialData(authSession) {
     recommendations,
     refreshMLSuggestions,
     refreshRecommendations,
+    refreshIgnoredSuggestions,
     setIgnoredSuggestionIds,
   };
 }

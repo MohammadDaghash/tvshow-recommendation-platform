@@ -155,6 +155,36 @@ test("buildInteractionEvent supports card opens and suggestion impressions", () 
   );
 });
 
+test("buildInteractionEvent supports honest admin catalog maintenance events", () => {
+  assert.deepEqual(
+    [
+      buildInteractionEvent({
+        userId: "admin-1",
+        eventType: "catalog_imported",
+        tmdbId: 95396,
+        title: "Severance",
+        sourcePage: "admin",
+        metadata: {
+          actorRole: "admin",
+          dataScope: "demo",
+        },
+      }).eventType,
+      buildInteractionEvent({
+        userId: "admin-1",
+        eventType: "catalog_deleted",
+        tmdbId: 95396,
+        title: "Severance",
+        sourcePage: "admin",
+        metadata: {
+          actorRole: "admin",
+          dataScope: "demo",
+        },
+      }).eventType,
+    ],
+    ["catalog_imported", "catalog_deleted"],
+  );
+});
+
 test("recordInteractionEvents persists a batch of built events", async () => {
   const insertedEvents = [];
   const model = {

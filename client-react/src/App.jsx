@@ -17,7 +17,9 @@ import {
   shouldShowIgnoreSuggestionSuccess,
 } from "./suggestionFeedback";
 import {
+  canTrackRecommendationData,
   getDisplayGenreList,
+  getIgnoredSuggestionFetchToken,
   getRecommendationFetchToken,
 } from "./displayLibrary";
 import { authHeaders, parseJSONResponse } from "./httpClient";
@@ -76,6 +78,7 @@ function App() {
     loadAppData,
     mlSuggestions,
     recommendations,
+    refreshIgnoredSuggestions,
     refreshMLSuggestions,
     refreshRecommendations,
     setIgnoredSuggestionIds,
@@ -108,7 +111,7 @@ function App() {
   const authToken = authSession?.token || "";
   const isAdmin = currentUser?.role === "admin";
   const isDemoMode = !currentUser;
-  const canTrackPersonalData = Boolean(currentUser && !isAdmin && authToken);
+  const canTrackPersonalData = canTrackRecommendationData(authSession);
 
   useEffect(() => {
     let isCurrent = true;
@@ -136,7 +139,10 @@ function App() {
 
         saveStoredSession(nextSession);
         setAuthSession(nextSession);
-        await loadAppData(getRecommendationFetchToken(nextSession));
+        await loadAppData(
+          getRecommendationFetchToken(nextSession),
+          getIgnoredSuggestionFetchToken(nextSession),
+        );
       } catch (error) {
         console.error(error);
         clearStoredSession();
@@ -403,7 +409,10 @@ function App() {
         email: "",
         password: "",
       });
-      await loadAppData(getRecommendationFetchToken(nextSession));
+      await loadAppData(
+        getRecommendationFetchToken(nextSession),
+        getIgnoredSuggestionFetchToken(nextSession),
+      );
       showNotice(
         "success",
         isSignup ? "Account created" : "Logged in",
@@ -611,6 +620,7 @@ function App() {
           : [...previousIds, show.tmdbId],
       );
       await refreshMLSuggestions();
+      await refreshIgnoredSuggestions();
       const recommendationLogId = await recommendationLogIdPromise;
 
       trackPersonalRecommendationFeedback(show, "ignored", {
@@ -863,7 +873,12 @@ function App() {
     return (
       <LoadingScreen
         error={initialLoad.status === "error" ? initialLoad.error : ""}
-        onRetry={() => loadAppData(getRecommendationFetchToken(authSession))}
+        onRetry={() =>
+          loadAppData(
+            getRecommendationFetchToken(authSession),
+            getIgnoredSuggestionFetchToken(authSession),
+          )
+        }
       />
     );
   }

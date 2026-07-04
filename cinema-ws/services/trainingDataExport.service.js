@@ -145,8 +145,23 @@ const groupSignalsByItem = ({ recommendationLogs, userInteractions, recommendati
   return signalsByKey;
 };
 
+const getSignalContext = ({ log, signals }) => {
+  const linkedSignals = [...signals.feedback, ...signals.interactions];
+  const contextSignal = linkedSignals.find((signal) => {
+    return signal.metadata?.actorRole || signal.metadata?.dataScope;
+  });
+
+  return {
+    actorRole: contextSignal?.metadata?.actorRole || "",
+    dataScope:
+      contextSignal?.metadata?.dataScope ||
+      (log.source === "demo" ? "demo" : "private"),
+  };
+};
+
 const createTrainingRow = ({ log, item, showLookup, signals }) => {
   const metadata = getShowMetadata(item, showLookup);
+  const signalContext = getSignalContext({ log, signals });
   const feedbackActions = signals.feedback.map((feedback) => feedback.action);
   const ratingFeedback = signals.feedback.find((feedback) =>
     isValidRating(feedback.rating),
@@ -162,6 +177,8 @@ const createTrainingRow = ({ log, item, showLookup, signals }) => {
   return {
     logId: toId(log._id),
     userId: toId(log.user),
+    actorRole: signalContext.actorRole,
+    dataScope: signalContext.dataScope,
     modelVersion: log.modelVersion || "unknown",
     source: log.source || "",
     page: log.page || "",

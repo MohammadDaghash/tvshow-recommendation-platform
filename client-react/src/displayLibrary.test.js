@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  canTrackRecommendationData,
+  getIgnoredSuggestionFetchToken,
   getRecommendationFetchToken,
   getDisplayGenre,
   getFilterGenres,
@@ -35,6 +37,17 @@ test("admin sessions use the public dataset while normal users use private data"
     }),
     "user-token",
   );
+});
+
+test("admin sessions keep auth available for demo taste tracking", () => {
+  const adminSession = {
+    token: "admin-token",
+    user: { role: "admin" },
+  };
+
+  assert.equal(getRecommendationFetchToken(adminSession), "");
+  assert.equal(getIgnoredSuggestionFetchToken(adminSession), "admin-token");
+  assert.equal(canTrackRecommendationData(adminSession), true);
 });
 
 test("groupShowsByCategory creates clear genre sections", () => {

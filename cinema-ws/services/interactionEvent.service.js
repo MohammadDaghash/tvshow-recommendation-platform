@@ -1,6 +1,8 @@
 const UserInteraction = require("../models/UserInteraction");
 
 const INTERACTION_EVENT_TYPES = Object.freeze([
+  "catalog_deleted",
+  "catalog_imported",
   "status_changed",
   "rating_submitted",
   "suggestion_accepted",

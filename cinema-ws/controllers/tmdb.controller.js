@@ -1,4 +1,11 @@
 const TVShow = require("../models/TVShow");
+const {
+  recordInteractionEvent,
+} = require("../services/interactionEvent.service");
+const {
+  shouldRecordTasteSignals,
+  withRecommendationSignalContext,
+} = require("../services/recommendationSignalContext.service");
 
 const {
   searchTVShows,
@@ -23,6 +30,29 @@ const searchTMDBTVShows = async (req, res) => {
       message: error.message,
     });
   }
+};
+
+const recordCatalogImport = (req, tvShow) => {
+  if (!shouldRecordTasteSignals(req.user)) {
+    return Promise.resolve(null);
+  }
+
+  return recordInteractionEvent(
+    {
+      userId: req.user._id,
+      eventType: "catalog_imported",
+      tvShowId: tvShow._id,
+      tmdbId: tvShow.tmdbId,
+      title: tvShow.title,
+      sourcePage: req.body?.sourcePage || "admin",
+      metadata: withRecommendationSignalContext(req.user, {
+        catalogAction: "import",
+        popularity: tvShow.popularity,
+        tmdbRating: tvShow.tmdbRating,
+      }),
+    },
+    { bestEffort: true },
+  );
 };
 
 const importTVShow = async (req, res) => {
@@ -54,6 +84,8 @@ const importTVShow = async (req, res) => {
       userRating: null,
       recommendationScore: 0,
     });
+
+    await recordCatalogImport(req, newTVShow);
 
     res.status(201).json(newTVShow);
   } catch (error) {

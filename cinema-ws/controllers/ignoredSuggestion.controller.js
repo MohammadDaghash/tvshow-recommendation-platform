@@ -2,9 +2,13 @@ const UserIgnoredSuggestion = require("../models/UserIgnoredSuggestion");
 const {
   recordInteractionEvent,
 } = require("../services/interactionEvent.service");
+const {
+  shouldRecordTasteSignals,
+  withRecommendationSignalContext,
+} = require("../services/recommendationSignalContext.service");
 
 const recordIgnoredSuggestion = (req, payload) => {
-  if (!req.user || req.user.role === "admin") {
+  if (!shouldRecordTasteSignals(req.user)) {
     return Promise.resolve(null);
   }
 
@@ -14,6 +18,7 @@ const recordIgnoredSuggestion = (req, payload) => {
       eventType: "suggestion_ignored",
       sourcePage: req.body?.sourcePage || "ai",
       ...payload,
+      metadata: withRecommendationSignalContext(req.user, payload.metadata),
     },
     { bestEffort: true },
   );

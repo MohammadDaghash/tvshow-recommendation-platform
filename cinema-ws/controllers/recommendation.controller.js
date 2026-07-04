@@ -8,9 +8,13 @@ const { buildUserShowUpdate } = require("../services/userLibrary.service");
 const {
   recordInteractionEvent,
 } = require("../services/interactionEvent.service");
+const {
+  shouldRecordTasteSignals,
+  withRecommendationSignalContext,
+} = require("../services/recommendationSignalContext.service");
 
 const recordUserInteraction = (req, payload) => {
-  if (!req.user || req.user.role === "admin") {
+  if (!shouldRecordTasteSignals(req.user)) {
     return Promise.resolve(null);
   }
 
@@ -22,8 +26,10 @@ const recordUserInteraction = (req, payload) => {
       sourcePage: req.body?.sourcePage,
       ...payload,
       metadata: {
-        ...requestMetadata,
-        ...(payload.metadata || {}),
+        ...withRecommendationSignalContext(req.user, {
+          ...requestMetadata,
+          ...(payload.metadata || {}),
+        }),
       },
     },
     { bestEffort: true },
@@ -124,6 +130,18 @@ const updateCatalogStatus = async (req, res) => {
         message: "TV show not found",
       });
     }
+
+    await recordUserInteraction(req, {
+      eventType: getStatusEventType(status),
+      tvShowId: id,
+      tmdbId: updatedShow.tmdbId,
+      title: updatedShow.title,
+      rating: status === "watched" ? userRating : undefined,
+      status,
+      metadata: {
+        catalogAction: "status_update",
+      },
+    });
 
     res.json(updatedShow);
   } catch (error) {
@@ -286,9 +304,21 @@ const removeFromLibrary = async (req, res) => {
 const deleteTVShow = async (req, res) => {
   try {
     const { id } = req.params;
+    const show = await TVShow.findById(id);
 
     await TVShow.findByIdAndDelete(id);
     await UserShow.deleteMany({ tvShow: id });
+
+    await recordUserInteraction(req, {
+      eventType: "catalog_deleted",
+      tmdbId: show?.tmdbId,
+      title: show?.title,
+      sourcePage: req.body?.sourcePage || "admin",
+      status: "none",
+      metadata: {
+        catalogAction: "delete",
+      },
+    });
 
     res.json({ message: "TV show deleted successfully" });
   } catch (error) {
