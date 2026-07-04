@@ -79,3 +79,26 @@ test("buildAISuggestionCandidates excludes normal user library shows from fallba
     [2],
   );
 });
+
+test("getTopAISuggestions keeps real ML poster suggestions ahead of fallback fillers", () => {
+  const realSuggestions = Array.from({ length: 20 }, (_, index) => ({
+    ...suggestion(index + 1, 60 - index),
+    imageUrl: `https://image.tmdb.org/t/p/w500/poster-${index + 1}.jpg`,
+  }));
+  const fallbackSuggestions = Array.from({ length: 4 }, (_, index) => ({
+    ...suggestion(index + 21, 99 - index),
+    isFallbackSuggestion: true,
+  }));
+
+  const topSuggestions = getTopAISuggestions([
+    ...realSuggestions,
+    ...fallbackSuggestions,
+  ]);
+
+  assert.equal(topSuggestions.length, 20);
+  assert.ok(topSuggestions.every((show) => !show.isFallbackSuggestion));
+  assert.deepEqual(
+    topSuggestions.slice(0, 3).map((show) => show.tmdbId),
+    [1, 2, 3],
+  );
+});

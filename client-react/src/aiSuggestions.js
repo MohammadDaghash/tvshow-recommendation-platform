@@ -2,6 +2,10 @@ const getSuggestionScore = (show) => {
   return show.matchScore ?? show.recommendationScore ?? 0;
 };
 
+const getSuggestionSourcePriority = (show) => {
+  return show.isFallbackSuggestion ? 0 : 1;
+};
+
 const listStatuses = new Set(["watched", "want", "watching"]);
 
 const normalizeTitle = (title) => {
@@ -43,7 +47,13 @@ export const buildAISuggestionCandidates = ({
   const seenKeys = new Set();
   const candidates = [];
 
-  [...mlSuggestions, ...fallbackSuggestions].forEach((show) => {
+  [
+    ...mlSuggestions,
+    ...fallbackSuggestions.map((show) => ({
+      ...show,
+      isFallbackSuggestion: true,
+    })),
+  ].forEach((show) => {
     const key = getSuggestionKey(show);
 
     if (!key || blockedKeys.has(key) || seenKeys.has(key)) {
@@ -66,6 +76,13 @@ export const getTopAISuggestions = (
 
   return [...suggestions]
     .filter((show) => !ignoredIds.has(show.tmdbId))
-    .sort((a, b) => getSuggestionScore(b) - getSuggestionScore(a))
+    .sort((a, b) => {
+      const sourceDifference =
+        getSuggestionSourcePriority(b) - getSuggestionSourcePriority(a);
+
+      if (sourceDifference !== 0) return sourceDifference;
+
+      return getSuggestionScore(b) - getSuggestionScore(a);
+    })
     .slice(0, limit);
 };
