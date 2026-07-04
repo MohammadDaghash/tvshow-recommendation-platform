@@ -1,9 +1,5 @@
 export const formatPercent = (value) => `${Math.round(Number(value || 0) * 100)}%`;
 
-export function getReadinessLabel(status) {
-  return status === "ready" ? "Taste profile ready" : "Collect more signals";
-}
-
 export function getHealthMetricCards(health) {
   const signalSummary = health?.signalReport?.summary || {};
   const analysisSummary = health?.trainingAnalysis?.summary || {};

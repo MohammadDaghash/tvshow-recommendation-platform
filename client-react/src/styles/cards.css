@@ -430,26 +430,6 @@
   color: var(--cinema-muted);
 }
 
-.readiness-pill {
-  padding: 10px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  color: var(--cinema-text);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: capitalize;
-}
-
-.readiness-pill.ready {
-  border-color: rgba(104, 230, 149, 0.38);
-  background: rgba(104, 230, 149, 0.18);
-}
-
-.readiness-pill.not_ready {
-  border-color: rgba(242, 198, 99, 0.42);
-  background: rgba(242, 198, 99, 0.16);
-}
-
 .training-health-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-bottom: 16px;

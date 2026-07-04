@@ -59,7 +59,7 @@ const rows = [
   },
 ];
 
-test("analyzeTrainingDataExport summarizes label sparsity and readiness", () => {
+test("analyzeTrainingDataExport summarizes label sparsity without readiness thresholds", () => {
   const analysis = analyzeTrainingDataExport(
     {
       summary: {
@@ -68,9 +68,6 @@ test("analyzeTrainingDataExport summarizes label sparsity and readiness", () => 
       rows,
     },
     {
-      minPositiveExamples: 2,
-      minNegativeExamples: 2,
-      minSupervisedLabelRate: 0.5,
       topGenreLimit: 2,
     },
   );
@@ -99,15 +96,7 @@ test("analyzeTrainingDataExport summarizes label sparsity and readiness", () => 
     tmdbRatingCoverage: 0.6,
   });
 
-  assert.deepEqual(analysis.readiness, {
-    isReadyForML: false,
-    status: "not_ready",
-    reasons: [
-      "Need at least 2 positive examples; found 1.",
-      "Need at least 2 negative examples; found 1.",
-      "Need supervised label rate of at least 50%; found 40%.",
-    ],
-  });
+  assert.equal(analysis.readiness, undefined);
 });
 
 test("analyzeTrainingDataExport reports top genre and model-version signal rates", () => {
@@ -116,9 +105,6 @@ test("analyzeTrainingDataExport reports top genre and model-version signal rates
       rows,
     },
     {
-      minPositiveExamples: 1,
-      minNegativeExamples: 1,
-      minSupervisedLabelRate: 0.2,
       topGenreLimit: 2,
     },
   );
@@ -168,8 +154,7 @@ test("analyzeTrainingDataExport reports top genre and model-version signal rates
       negativeRate: 0,
     },
   ]);
-
-  assert.equal(analysis.readiness.isReadyForML, true);
+  assert.equal(analysis.readiness, undefined);
 });
 
 test("parseTrainingAnalysisArgs defaults to text and supports json and top", () => {

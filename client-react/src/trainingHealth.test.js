@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import * as trainingHealth from "./trainingHealth.js";
 import {
   formatPercent,
   getHealthMetricCards,
-  getReadinessLabel,
 } from "./trainingHealth.js";
 
 test("formatPercent renders decimal rates as whole percentages", () => {
@@ -12,9 +12,8 @@ test("formatPercent renders decimal rates as whole percentages", () => {
   assert.equal(formatPercent(0.5), "50%");
 });
 
-test("getReadinessLabel explains ML readiness simply", () => {
-  assert.equal(getReadinessLabel("ready"), "Taste profile ready");
-  assert.equal(getReadinessLabel("not_ready"), "Collect more signals");
+test("training health helpers do not expose readiness labels", () => {
+  assert.equal("getReadinessLabel" in trainingHealth, false);
 });
 
 test("getHealthMetricCards summarizes the important training health numbers", () => {

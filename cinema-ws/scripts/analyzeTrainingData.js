@@ -68,12 +68,6 @@ const printTextAnalysis = (analysis) => {
       analysis.metadataCoverage.tmdbRatingCoverage,
     )}`,
   );
-  console.log(`ML readiness: ${analysis.readiness.status}`);
-
-  for (const reason of analysis.readiness.reasons) {
-    console.log(`- ${reason}`);
-  }
-
   console.log("\nTop Genres");
   if (analysis.topGenres.length === 0) {
     console.log("- No genre metadata available.");

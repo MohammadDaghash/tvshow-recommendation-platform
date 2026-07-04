@@ -6,9 +6,6 @@ const {
 } = require("./trainingDataAnalysis.service");
 const { buildTrainingDataExport } = require("./trainingDataExport.service");
 
-const MIN_RATED_TASTE_EXAMPLES = 5;
-const MIN_TOTAL_TASTE_SIGNALS = 10;
-
 const isRating = (value) => {
   const rating = Number(value);
 
@@ -45,27 +42,8 @@ function buildTasteProfile({ tvShows = [], userShows = [], userInteractions = []
     summary.watchingCount +
     summary.interactionCount;
 
-  const reasons = [];
-
-  if (summary.ratedCount < MIN_RATED_TASTE_EXAMPLES) {
-    reasons.push(
-      `Need at least ${MIN_RATED_TASTE_EXAMPLES} rated watched shows; found ${summary.ratedCount}.`,
-    );
-  }
-
-  if (summary.totalTasteSignals < MIN_TOTAL_TASTE_SIGNALS) {
-    reasons.push(
-      `Need at least ${MIN_TOTAL_TASTE_SIGNALS} total taste signals; found ${summary.totalTasteSignals}.`,
-    );
-  }
-
   return {
     summary,
-    readiness: {
-      status: reasons.length ? "not_ready" : "ready",
-      isReadyForProfileBasedRecommendations: reasons.length === 0,
-      reasons,
-    },
   };
 }
 

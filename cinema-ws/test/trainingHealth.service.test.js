@@ -82,11 +82,11 @@ test("buildTrainingHealth combines signal report and training analysis", () => {
   assert.equal(health.trainingAnalysis.summary.positiveCount, 1);
   assert.equal(health.trainingAnalysis.summary.ratedCount, 1);
   assert.equal(health.trainingAnalysis.metadataCoverage.tmdbRatingCoverage, 1);
-  assert.equal(health.trainingAnalysis.readiness.status, "not_ready");
+  assert.equal(health.trainingAnalysis.readiness, undefined);
 });
 
-test("buildTrainingHealth counts watched ratings and library intent as taste profile data", () => {
-  const userShows = Array.from({ length: 5 }, (_, index) => ({
+test("buildTrainingHealth counts watched ratings and library intent without readiness thresholds", () => {
+  const userShows = Array.from({ length: 2 }, (_, index) => ({
     user: "user-1",
     tvShow: `show-${index + 1}`,
     status: "watched",
@@ -147,13 +147,12 @@ test("buildTrainingHealth counts watched ratings and library intent as taste pro
   });
 
   assert.deepEqual(health.tasteProfile.summary, {
-    watchedCount: 5,
-    ratedCount: 5,
+    watchedCount: 2,
+    ratedCount: 2,
     wantCount: 2,
     watchingCount: 2,
     interactionCount: 1,
-    totalTasteSignals: 10,
+    totalTasteSignals: 7,
   });
-  assert.equal(health.tasteProfile.readiness.status, "ready");
-  assert.equal(health.tasteProfile.readiness.reasons.length, 0);
+  assert.equal(health.tasteProfile.readiness, undefined);
 });

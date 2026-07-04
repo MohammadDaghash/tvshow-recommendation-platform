@@ -3,11 +3,7 @@ import { useEffect, useState } from "react";
 import { apiUrl } from "../api";
 import { authHeaders, parseJSONResponse } from "../httpClient";
 import { readStoredSession } from "../sessionStorage";
-import {
-  formatPercent,
-  getHealthMetricCards,
-  getReadinessLabel,
-} from "../trainingHealth";
+import { formatPercent, getHealthMetricCards } from "../trainingHealth";
 
 const fetchTrainingHealth = async () => {
   const token = readStoredSession()?.token;
@@ -79,23 +75,19 @@ export function TrainingHealthPanel() {
 
   const metricCards = getHealthMetricCards(health);
   const analysis = health.trainingAnalysis;
-  const feedbackReadiness = analysis.readiness;
-  const profileReadiness = health.tasteProfile.readiness;
 
   return (
     <section className="training-health-panel">
       <div className="training-health-header">
         <div>
-          <p className="lead-carousel-kicker">Taste Profile Data</p>
-          <h2>{getReadinessLabel(profileReadiness.status)}</h2>
+          <p className="lead-carousel-kicker">Training Data</p>
+          <h2>Current data snapshot</h2>
           <p className="training-health-muted">
-            Watched ratings and list actions are counted here. AI feedback is
-            tracked separately below.
+            The recommender uses the watched ratings, list actions, AI
+            feedback, and catalog metadata available right now. More activity
+            improves the signal, but there is no hard minimum for it to work.
           </p>
         </div>
-        <span className={`readiness-pill ${profileReadiness.status}`}>
-          {profileReadiness.status.replace("_", " ")}
-        </span>
       </div>
 
       <div className="training-health-grid">
@@ -105,38 +97,6 @@ export function TrainingHealthPanel() {
             <strong>{card.value}</strong>
           </article>
         ))}
-      </div>
-
-      <div className="training-health-columns">
-        <article className="training-health-detail">
-          <h3>Taste Profile Gaps</h3>
-          {profileReadiness.reasons.length ? (
-            <ul>
-              {profileReadiness.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="training-health-muted">
-              Enough watched/list data exists for profile-based recommendations.
-            </p>
-          )}
-        </article>
-
-        <article className="training-health-detail">
-          <h3>AI Feedback Gaps</h3>
-          {feedbackReadiness.reasons.length ? (
-            <ul>
-              {feedbackReadiness.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="training-health-muted">
-              Enough AI suggestion feedback exists for a first evaluation.
-            </p>
-          )}
-        </article>
       </div>
 
       <div className="training-health-columns">

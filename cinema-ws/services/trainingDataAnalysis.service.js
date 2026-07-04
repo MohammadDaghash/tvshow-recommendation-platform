@@ -1,7 +1,3 @@
-const DEFAULT_MIN_POSITIVE_EXAMPLES = 20;
-const DEFAULT_MIN_NEGATIVE_EXAMPLES = 20;
-const DEFAULT_MIN_SUPERVISED_LABEL_RATE = 0.05;
-
 const round = (value) => Number(value.toFixed(2));
 
 const rate = (count, total) => {
@@ -9,8 +5,6 @@ const rate = (count, total) => {
 
   return round(count / total);
 };
-
-const percentage = (value) => `${Math.round(value * 100)}%`;
 
 const isPositiveRow = (row) => row.wasAccepted || row.wasRated;
 
@@ -139,42 +133,6 @@ const analyzeModelVersions = (rows) => {
   return [...buckets.values()].map(finalizeBucket).sort(compareBuckets);
 };
 
-const buildReadiness = (summary, options) => {
-  const minPositiveExamples =
-    options.minPositiveExamples || DEFAULT_MIN_POSITIVE_EXAMPLES;
-  const minNegativeExamples =
-    options.minNegativeExamples || DEFAULT_MIN_NEGATIVE_EXAMPLES;
-  const minSupervisedLabelRate =
-    options.minSupervisedLabelRate || DEFAULT_MIN_SUPERVISED_LABEL_RATE;
-  const reasons = [];
-
-  if (summary.positiveCount < minPositiveExamples) {
-    reasons.push(
-      `Need at least ${minPositiveExamples} positive examples; found ${summary.positiveCount}.`,
-    );
-  }
-
-  if (summary.negativeCount < minNegativeExamples) {
-    reasons.push(
-      `Need at least ${minNegativeExamples} negative examples; found ${summary.negativeCount}.`,
-    );
-  }
-
-  if (summary.supervisedLabelRate < minSupervisedLabelRate) {
-    reasons.push(
-      `Need supervised label rate of at least ${percentage(
-        minSupervisedLabelRate,
-      )}; found ${percentage(summary.supervisedLabelRate)}.`,
-    );
-  }
-
-  return {
-    isReadyForML: reasons.length === 0,
-    status: reasons.length === 0 ? "ready" : "not_ready",
-    reasons,
-  };
-};
-
 function analyzeTrainingDataExport(exportData, options = {}) {
   const rows = exportData.rows || [];
   const topGenreLimit =
@@ -186,7 +144,6 @@ function analyzeTrainingDataExport(exportData, options = {}) {
   return {
     summary,
     metadataCoverage: calculateMetadataCoverage(rows),
-    readiness: buildReadiness(summary, options),
     topGenres: analyzeGenres(rows, topGenreLimit),
     modelVersions: analyzeModelVersions(rows),
   };
