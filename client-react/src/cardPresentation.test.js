@@ -69,7 +69,7 @@ test("getSuggestionBadgeText uses TMDB rating instead of duplicate match score",
   );
 });
 
-test("getLibraryBadgeText uses TMDB rating except on watched cards", () => {
+test("getLibraryBadgeText uses TMDB rating on library cards", () => {
   assert.equal(
     getLibraryBadgeText({
       status: "want",
@@ -93,6 +93,6 @@ test("getLibraryBadgeText uses TMDB rating except on watched cards", () => {
       userRating: 9.1,
       tmdbRating: 8.8,
     }),
-    "9.1/10",
+    "TMDB 8.8",
   );
 });

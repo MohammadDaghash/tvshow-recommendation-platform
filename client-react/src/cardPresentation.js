@@ -21,10 +21,6 @@ export function getSuggestionBadgeText(show) {
 }
 
 export function getLibraryBadgeText(show) {
-  if (show.status === "watched") {
-    return `${show.userRating}/10`;
-  }
-
   return getSuggestionBadgeText(show);
 }
 
