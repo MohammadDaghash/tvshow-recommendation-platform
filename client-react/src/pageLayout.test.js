@@ -26,15 +26,22 @@ test("getLeadCarouselConfig enables carousel-first layout for Currently Watching
   });
 });
 
-test("getLeadCarouselConfig keeps AI Suggestions carousel-first and Watched grouped-only", () => {
+test("getLeadCarouselConfig enables carousel-first layout for Watched", () => {
+  assert.deepEqual(getLeadCarouselConfig("watched", shows), {
+    kicker: "Watched Library",
+    title: "All Watched Shows",
+    countLabel: "2 shows",
+    ariaLabel: "All watched shows carousel",
+  });
+});
+
+test("getLeadCarouselConfig keeps AI Suggestions carousel-first", () => {
   assert.deepEqual(getLeadCarouselConfig("ai", shows), {
     kicker: "Recommendation Engine",
     title: "Top AI Suggestions",
     countLabel: "2 picks",
     ariaLabel: "Top AI Suggestions",
   });
-
-  assert.equal(getLeadCarouselConfig("watched", shows), null);
 });
 
 test("getLeadCarouselConfig suppresses empty lead carousels", () => {

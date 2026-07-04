@@ -96,3 +96,15 @@ test("getLibraryBadgeText uses TMDB rating on library cards", () => {
     "TMDB 8.8",
   );
 });
+
+test("getLibraryBadgeText falls back to known legacy TMDB ratings", () => {
+  assert.equal(
+    getLibraryBadgeText({
+      title: "Friends",
+      status: "watched",
+      userRating: 9.7,
+      recommendationScore: 0,
+    }),
+    "TMDB 8.4",
+  );
+});

@@ -1,4 +1,10 @@
 const leadCarouselCopy = {
+  watched: {
+    kicker: "Watched Library",
+    title: "All Watched Shows",
+    ariaLabel: "All watched shows carousel",
+    countUnit: "show",
+  },
   want: {
     kicker: "Your List",
     title: "Want to Watch",
