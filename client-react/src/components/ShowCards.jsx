@@ -53,7 +53,9 @@ export function SuggestionCard({
     >
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />
-        <span className="card-badge rating">{getSuggestionBadgeText(show)}</span>
+        <span className="card-badge tmdb-badge">
+          {getSuggestionBadgeText(show)}
+        </span>
       </div>
 
       <div className="tv-card-body">
