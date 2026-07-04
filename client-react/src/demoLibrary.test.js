@@ -45,6 +45,81 @@ test("buildDemoLibrary creates a currently watching demo lane from top want show
   );
 });
 
+test("buildDemoLibrary can avoid synthetic currently watching rows for editable public data", () => {
+  const library = buildDemoLibrary(
+    [
+      show("low", "want", 20),
+      show("high", "want", 99),
+      show("mid", "want", 70),
+    ],
+    {
+      deriveWatching: false,
+    },
+  );
+
+  assert.deepEqual(library.watchingShows, []);
+  assert.deepEqual(
+    library.wantShows.map((item) => item._id),
+    ["high", "mid", "low"],
+  );
+});
+
+test("buildDemoLibrary preserves explicit currently watching rows in editable public data", () => {
+  const library = buildDemoLibrary(
+    [
+      show("want-1", "want", 20),
+      show("watching-1", "watching", 99),
+    ],
+    {
+      deriveWatching: false,
+    },
+  );
+
+  assert.deepEqual(
+    library.watchingShows.map((item) => [item._id, item.status]),
+    [["watching-1", "watching"]],
+  );
+  assert.deepEqual(
+    library.wantShows.map((item) => item._id),
+    ["want-1"],
+  );
+});
+
+test("buildDemoLibrary keeps the legacy numeric watching count argument", () => {
+  const library = buildDemoLibrary(
+    [
+      show("low", "want", 20),
+      show("high", "want", 99),
+      show("mid", "want", 70),
+    ],
+    1,
+  );
+
+  assert.deepEqual(
+    library.watchingShows.map((item) => item._id),
+    ["high"],
+  );
+});
+
+test("buildDemoLibrary supports an options object with a custom derived watching count", () => {
+  const library = buildDemoLibrary(
+    [
+      show("low", "want", 20),
+      show("high", "want", 99),
+      show("mid", "want", 70),
+    ],
+    {
+      demoWatchingCount: 1,
+      deriveWatching: true,
+    },
+  );
+
+  assert.deepEqual(
+    library.watchingShows.map((item) => item._id),
+    ["high"],
+  );
+});
+
 test("buildDemoLibrary falls back to unwatched catalog shows without status", () => {
   const library = buildDemoLibrary([
     { ...show("watched", undefined), watched: true },

@@ -2,6 +2,10 @@ export const shouldUsePublicDataset = (user) => {
   return !user || user.role === "admin";
 };
 
+export const shouldDeriveDemoWatching = (user) => {
+  return !user;
+};
+
 export const canTrackRecommendationData = (session) => {
   return Boolean(session?.token && session?.user);
 };

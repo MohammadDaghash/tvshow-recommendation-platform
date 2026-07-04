@@ -16,7 +16,22 @@ const byRecommendationScore = (left, right) => {
   return (right.recommendationScore || 0) - (left.recommendationScore || 0);
 };
 
-export function buildDemoLibrary(recommendations, demoWatchingCount = 2) {
+const normalizeDemoOptions = (options = 2) => {
+  if (typeof options === "number") {
+    return {
+      demoWatchingCount: options,
+      deriveWatching: true,
+    };
+  }
+
+  return {
+    demoWatchingCount: options.demoWatchingCount ?? 2,
+    deriveWatching: options.deriveWatching !== false,
+  };
+};
+
+export function buildDemoLibrary(recommendations, options = 2) {
+  const { demoWatchingCount, deriveWatching } = normalizeDemoOptions(options);
   const sourceShows = recommendations.length > 0 ? recommendations : DEMO_CATALOG;
 
   const normalizedShows = sourceShows.map((show) => ({
@@ -40,10 +55,12 @@ export function buildDemoLibrary(recommendations, demoWatchingCount = 2) {
   const derivedWatchingShows =
     explicitWatchingShows.length > 0
       ? explicitWatchingShows.sort(byRecommendationScore)
-      : wantCandidates.slice(0, demoWatchingCount).map((show) => ({
-          ...show,
-          status: "watching",
-        }));
+      : deriveWatching
+        ? wantCandidates.slice(0, demoWatchingCount).map((show) => ({
+            ...show,
+            status: "watching",
+          }))
+        : [];
 
   const watchingIds = new Set(derivedWatchingShows.map((show) => show._id));
   const wantShows = wantCandidates.filter((show) => !watchingIds.has(show._id));

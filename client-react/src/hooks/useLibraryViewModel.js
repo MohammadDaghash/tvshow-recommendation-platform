@@ -8,6 +8,7 @@ import {
   getFilterGenres,
   getNormalizedDisplayGenres,
   groupShowsByCategory,
+  shouldDeriveDemoWatching,
   shouldUsePublicDataset,
 } from "../displayLibrary";
 import { getLeadCarouselConfig } from "../pageLayout";
@@ -24,8 +25,11 @@ export function useLibraryViewModel({
   const usesPublicDataset = shouldUsePublicDataset(currentUser);
 
   const demoLibrary = useMemo(
-    () => buildDemoLibrary(recommendations),
-    [recommendations],
+    () =>
+      buildDemoLibrary(recommendations, {
+        deriveWatching: shouldDeriveDemoWatching(currentUser),
+      }),
+    [currentUser, recommendations],
   );
 
   const privateRecommendations = usesPublicDataset ? [] : recommendations;

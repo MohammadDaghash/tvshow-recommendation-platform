@@ -9,6 +9,8 @@
     "test": "node --test",
     "backfill:tmdb": "node scripts/backfillTMDBMetadata.js",
     "backfill:tmdb:apply": "node scripts/backfillTMDBMetadata.js --apply",
+    "backfill:demo-watching": "node scripts/backfillDemoWatchingStatus.js",
+    "backfill:demo-watching:apply": "node scripts/backfillDemoWatchingStatus.js --apply",
     "audit:data": "node scripts/auditRecommendationData.js",
     "audit:data:json": "node scripts/auditRecommendationData.js --json",
     "report:baseline": "node scripts/baselineRecommendationReport.js",

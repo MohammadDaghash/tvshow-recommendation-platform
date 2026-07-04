@@ -5,6 +5,7 @@ import {
   canTrackRecommendationData,
   getIgnoredSuggestionFetchToken,
   getRecommendationFetchToken,
+  shouldDeriveDemoWatching,
   getDisplayGenre,
   getFilterGenres,
   getNormalizedDisplayGenres,
@@ -48,6 +49,12 @@ test("admin sessions keep auth available for demo taste tracking", () => {
   assert.equal(getRecommendationFetchToken(adminSession), "");
   assert.equal(getIgnoredSuggestionFetchToken(adminSession), "admin-token");
   assert.equal(canTrackRecommendationData(adminSession), true);
+});
+
+test("demo watching rows are only derived for logged-out demo visitors", () => {
+  assert.equal(shouldDeriveDemoWatching(null), true);
+  assert.equal(shouldDeriveDemoWatching({ role: "admin" }), false);
+  assert.equal(shouldDeriveDemoWatching({ role: "user" }), false);
 });
 
 test("groupShowsByCategory creates clear genre sections", () => {
