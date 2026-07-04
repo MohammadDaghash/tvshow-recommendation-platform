@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  shouldApplySuggestionToCatalog,
   shouldRecordTasteSignals,
   withRecommendationSignalContext,
 } = require("../services/recommendationSignalContext.service");
@@ -43,4 +44,10 @@ test("withRecommendationSignalContext tags normal users as private data", () => 
       dataScope: "private",
     },
   );
+});
+
+test("shouldApplySuggestionToCatalog keeps admin AI accepts in demo mode", () => {
+  assert.equal(shouldApplySuggestionToCatalog({ role: "admin" }), true);
+  assert.equal(shouldApplySuggestionToCatalog({ role: "user" }), false);
+  assert.equal(shouldApplySuggestionToCatalog(null), false);
 });

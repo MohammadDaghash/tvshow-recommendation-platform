@@ -2,13 +2,17 @@ const TVShow = require("../models/TVShow");
 const UserShow = require("../models/UserShow");
 const recommendationService = require("../services/recommendation.service");
 const { getTVShowDetailsById } = require("../services/tmdb.service");
-const { buildTMDBCatalogUpdate } = require("../services/tmdbCatalog.service");
+const {
+  buildTMDBCatalogStatusUpdate,
+  buildTMDBCatalogUpdate,
+} = require("../services/tmdbCatalog.service");
 const { buildCatalogShowUpdate } = require("../services/catalogLibrary.service");
 const { buildUserShowUpdate } = require("../services/userLibrary.service");
 const {
   recordInteractionEvent,
 } = require("../services/interactionEvent.service");
 const {
+  shouldApplySuggestionToCatalog,
   shouldRecordTasteSignals,
   withRecommendationSignalContext,
 } = require("../services/recommendationSignalContext.service");
@@ -236,12 +240,15 @@ const addTMDBToLibrary = async (req, res) => {
     }
 
     const tmdbShow = await getTVShowDetailsById(tmdbId);
+    const update = shouldApplySuggestionToCatalog(req.user)
+      ? buildTMDBCatalogStatusUpdate(tmdbShow, status, { userRating })
+      : buildTMDBCatalogUpdate(tmdbShow);
 
     const tvShow = await TVShow.findOneAndUpdate(
       {
         tmdbId: tmdbShow.tmdbId,
       },
-      buildTMDBCatalogUpdate(tmdbShow),
+      update,
       {
         returnDocument: "after",
         setDefaultsOnInsert: true,
@@ -249,12 +256,14 @@ const addTMDBToLibrary = async (req, res) => {
       },
     );
 
-    const updatedShow = await upsertUserShowStatus({
-      userId: req.user._id,
-      tvShowId: tvShow._id,
-      status,
-      userRating,
-    });
+    const updatedShow = shouldApplySuggestionToCatalog(req.user)
+      ? tvShow
+      : await upsertUserShowStatus({
+          userId: req.user._id,
+          tvShowId: tvShow._id,
+          status,
+          userRating,
+        });
 
     await recordUserInteraction(req, {
       eventType: "suggestion_accepted",

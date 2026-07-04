@@ -18,6 +18,10 @@ const shouldRecordTasteSignals = (user) => {
   return Boolean(user?._id);
 };
 
+const shouldApplySuggestionToCatalog = (user) => {
+  return user?.role === "admin";
+};
+
 const withRecommendationSignalContext = (user, metadata = {}) => {
   return {
     ...cleanMetadata(metadata),
@@ -27,6 +31,7 @@ const withRecommendationSignalContext = (user, metadata = {}) => {
 };
 
 module.exports = {
+  shouldApplySuggestionToCatalog,
   shouldRecordTasteSignals,
   withRecommendationSignalContext,
 };

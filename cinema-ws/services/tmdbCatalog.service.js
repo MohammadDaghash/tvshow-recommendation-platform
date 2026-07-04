@@ -1,3 +1,5 @@
+const { buildCatalogShowUpdate } = require("./catalogLibrary.service");
+
 const buildTMDBCatalogUpdate = (tmdbShow) => ({
   title: tmdbShow.title,
   genres: tmdbShow.genres,
@@ -12,6 +14,12 @@ const buildTMDBCatalogUpdate = (tmdbShow) => ({
   watched: false,
 });
 
+const buildTMDBCatalogStatusUpdate = (tmdbShow, status, { userRating } = {}) => ({
+  ...buildTMDBCatalogUpdate(tmdbShow),
+  ...buildCatalogShowUpdate(status, { userRating }),
+});
+
 module.exports = {
+  buildTMDBCatalogStatusUpdate,
   buildTMDBCatalogUpdate,
 };
