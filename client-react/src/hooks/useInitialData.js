@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { apiUrl } from "../api";
 import {
   getIgnoredSuggestionFetchToken,
+  getMLSuggestionFetchToken,
   getRecommendationFetchToken,
 } from "../displayLibrary";
 import {
@@ -20,35 +21,38 @@ export function useInitialData(authSession) {
     error: "",
   });
 
-  const loadAppData = useCallback(async (token = "", ignoredToken = token) => {
-    setInitialLoad({
-      status: "loading",
-      error: "",
-    });
-
-    try {
-      const [{ nextRecommendations, nextMlSuggestions }, nextIgnoredIds] =
-        await Promise.all([
-          fetchInitialData(token),
-          fetchIgnoredSuggestionIds(ignoredToken),
-        ]);
-
-      setRecommendations(nextRecommendations);
-      setMlSuggestions(nextMlSuggestions);
-      setIgnoredSuggestionIds(nextIgnoredIds);
+  const loadAppData = useCallback(
+    async (token = "", ignoredToken = token, mlSuggestionsToken = token) => {
       setInitialLoad({
-        status: "ready",
+        status: "loading",
         error: "",
       });
-    } catch (error) {
-      setInitialLoad({
-        status: "error",
-        error:
-          error.message ||
-          "Something went wrong while connecting to the database.",
-      });
-    }
-  }, []);
+
+      try {
+        const [{ nextRecommendations, nextMlSuggestions }, nextIgnoredIds] =
+          await Promise.all([
+            fetchInitialData(token, mlSuggestionsToken),
+            fetchIgnoredSuggestionIds(ignoredToken),
+          ]);
+
+        setRecommendations(nextRecommendations);
+        setMlSuggestions(nextMlSuggestions);
+        setIgnoredSuggestionIds(nextIgnoredIds);
+        setInitialLoad({
+          status: "ready",
+          error: "",
+        });
+      } catch (error) {
+        setInitialLoad({
+          status: "error",
+          error:
+            error.message ||
+            "Something went wrong while connecting to the database.",
+        });
+      }
+    },
+    [],
+  );
 
   const refreshRecommendations = useCallback(async () => {
     const { nextRecommendations } = await fetchInitialData(
@@ -59,7 +63,7 @@ export function useInitialData(authSession) {
   }, [authSession]);
 
   const refreshMLSuggestions = useCallback(async () => {
-    const token = getRecommendationFetchToken(authSession);
+    const token = getMLSuggestionFetchToken(authSession);
     const response = await fetch(
       apiUrl("/api/ml-recommendations/tmdb"),
       token

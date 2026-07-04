@@ -68,10 +68,9 @@ const getTMDBRecommendations = async (req, res) => {
     const allExistingShows = await TVShow.find();
     const userLibraryShows = await getUserLibraryShows(req.user);
     const globalIgnoredSuggestions = await IgnoredSuggestion.find();
-    const userIgnoredSuggestions =
-      req.user && req.user.role !== "admin"
-        ? await UserIgnoredSuggestion.find({ user: req.user._id })
-        : [];
+    const userIgnoredSuggestions = req.user
+      ? await UserIgnoredSuggestion.find({ user: req.user._id })
+      : [];
     const ignoredSuggestions = resolveSuggestionIgnoredSuggestions({
       user: req.user,
       globalIgnoredSuggestions,

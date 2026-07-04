@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   canTrackRecommendationData,
   getIgnoredSuggestionFetchToken,
+  getMLSuggestionFetchToken,
   getRecommendationFetchToken,
   shouldDeriveDemoWatching,
   getDisplayGenre,
@@ -48,7 +49,19 @@ test("admin sessions keep auth available for demo taste tracking", () => {
 
   assert.equal(getRecommendationFetchToken(adminSession), "");
   assert.equal(getIgnoredSuggestionFetchToken(adminSession), "admin-token");
+  assert.equal(getMLSuggestionFetchToken(adminSession), "admin-token");
   assert.equal(canTrackRecommendationData(adminSession), true);
+});
+
+test("normal users and visitors use the expected ML suggestion token", () => {
+  assert.equal(getMLSuggestionFetchToken(null), "");
+  assert.equal(
+    getMLSuggestionFetchToken({
+      token: "user-token",
+      user: { role: "user" },
+    }),
+    "user-token",
+  );
 });
 
 test("demo watching rows are only derived for logged-out demo visitors", () => {

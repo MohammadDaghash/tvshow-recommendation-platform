@@ -49,3 +49,42 @@ test("fetchInitialData keeps recommendations when optional ML suggestions fail",
     globalThis.fetch = originalFetch;
   }
 });
+
+test("fetchInitialData can keep public recommendations while authenticating ML suggestions", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+
+  globalThis.fetch = async (url, options = {}) => {
+    requests.push({
+      url,
+      authorization: options.headers?.Authorization,
+    });
+
+    if (url.endsWith("/api/recommendations")) {
+      return jsonResponse([{ title: "Public Demo Show" }]);
+    }
+
+    return jsonResponse([{ title: "Refilled AI Pick" }]);
+  };
+
+  try {
+    const data = await fetchInitialData("", "admin-token");
+
+    assert.deepEqual(data, {
+      nextRecommendations: [{ title: "Public Demo Show" }],
+      nextMlSuggestions: [{ title: "Refilled AI Pick" }],
+    });
+    assert.deepEqual(
+      requests.map((request) => [request.url, request.authorization]),
+      [
+        ["http://localhost:5001/api/recommendations", undefined],
+        [
+          "http://localhost:5001/api/ml-recommendations/tmdb",
+          "Bearer admin-token",
+        ],
+      ],
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

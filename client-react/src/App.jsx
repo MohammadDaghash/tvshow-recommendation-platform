@@ -20,6 +20,7 @@ import {
   canTrackRecommendationData,
   getDisplayGenreList,
   getIgnoredSuggestionFetchToken,
+  getMLSuggestionFetchToken,
   getRecommendationFetchToken,
 } from "./displayLibrary";
 import { authHeaders, parseJSONResponse } from "./httpClient";
@@ -142,6 +143,7 @@ function App() {
         await loadAppData(
           getRecommendationFetchToken(nextSession),
           getIgnoredSuggestionFetchToken(nextSession),
+          getMLSuggestionFetchToken(nextSession),
         );
       } catch (error) {
         console.error(error);
@@ -412,6 +414,7 @@ function App() {
       await loadAppData(
         getRecommendationFetchToken(nextSession),
         getIgnoredSuggestionFetchToken(nextSession),
+        getMLSuggestionFetchToken(nextSession),
       );
       showNotice(
         "success",
@@ -877,6 +880,7 @@ function App() {
           loadAppData(
             getRecommendationFetchToken(authSession),
             getIgnoredSuggestionFetchToken(authSession),
+            getMLSuggestionFetchToken(authSession),
           )
         }
       />

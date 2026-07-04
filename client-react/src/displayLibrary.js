@@ -22,6 +22,10 @@ export const getIgnoredSuggestionFetchToken = (session) => {
   return session?.token || "";
 };
 
+export const getMLSuggestionFetchToken = (session) => {
+  return session?.token || "";
+};
+
 export const CANONICAL_DISPLAY_GENRES = [
   "Comedy",
   "Drama & Romance",

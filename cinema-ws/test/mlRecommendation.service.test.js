@@ -224,6 +224,48 @@ test("resolveSuggestionIgnoredSuggestions keeps normal user feedback private", (
   );
 });
 
+test("resolveSuggestionIgnoredSuggestions combines global and admin feedback for demo admins", () => {
+  const globalIgnoredSuggestions = [
+    {
+      title: "Globally Hidden Show",
+      tmdbId: 1,
+    },
+  ];
+  const userIgnoredSuggestions = [
+    {
+      title: "Admin Hidden Show",
+      tmdbId: 2,
+    },
+  ];
+
+  assert.deepEqual(
+    resolveSuggestionIgnoredSuggestions({
+      user: {
+        role: "admin",
+      },
+      globalIgnoredSuggestions,
+      userIgnoredSuggestions,
+    }),
+    [...globalIgnoredSuggestions, ...userIgnoredSuggestions],
+  );
+});
+
+test("buildTMDBRecommendations refills to 20 after ignored ids are excluded", () => {
+  const recommendations = buildTMDBRecommendations({
+    tmdbResults: Array.from({ length: 26 }, (_, index) => tmdbShow(index + 1)),
+    watchedShows: [],
+    excludedTMDBIds: [1, 2, 3, 4, 5, 6],
+    excludedTitles: [],
+    limit: 20,
+  });
+
+  assert.equal(recommendations.length, 20);
+  assert.deepEqual(
+    recommendations.map((show) => show.tmdbId),
+    Array.from({ length: 20 }, (_, index) => index + 7),
+  );
+});
+
 test("buildTMDBSuggestionRequest uses top-rated shows for cold-start users", () => {
   assert.deepEqual(
     buildTMDBSuggestionRequest({

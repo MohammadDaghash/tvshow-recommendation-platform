@@ -19,16 +19,21 @@ export async function parseJSONResponse(response) {
   return data;
 }
 
-export async function fetchInitialData(token) {
+export async function fetchInitialData(token, mlSuggestionsToken = token) {
   const authenticatedOptions = token
     ? {
         headers: authHeaders(token),
       }
     : undefined;
+  const mlSuggestionOptions = mlSuggestionsToken
+    ? {
+        headers: authHeaders(mlSuggestionsToken),
+      }
+    : undefined;
 
   const [recommendationsResponse, mlSuggestionsResponse] = await Promise.all([
     fetch(apiUrl("/api/recommendations"), authenticatedOptions),
-    fetch(apiUrl("/api/ml-recommendations/tmdb"), authenticatedOptions).catch(
+    fetch(apiUrl("/api/ml-recommendations/tmdb"), mlSuggestionOptions).catch(
       () => null,
     ),
   ]);

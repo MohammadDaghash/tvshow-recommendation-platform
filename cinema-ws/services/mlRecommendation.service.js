@@ -115,8 +115,12 @@ const resolveSuggestionIgnoredSuggestions = ({
   globalIgnoredSuggestions = [],
   userIgnoredSuggestions = [],
 }) => {
-  if (!user || user.role === "admin") {
+  if (!user) {
     return globalIgnoredSuggestions;
+  }
+
+  if (user.role === "admin") {
+    return [...globalIgnoredSuggestions, ...userIgnoredSuggestions];
   }
 
   return userIgnoredSuggestions;
