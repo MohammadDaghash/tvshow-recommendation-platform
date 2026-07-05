@@ -162,7 +162,7 @@ POST /api/ignored-suggestions
 - Content-based recommendation system design
 - Rating-weighted genre/category vectors
 - Cosine similarity and hybrid metadata scoring
-- Explainable recommendation breakdowns
+- Explainable recommendation breakdowns, including Claude-generated natural-language explanations layered on top of the existing cosine-similarity score breakdown so the recommender remains the source of truth and the LLM only narrates deterministic scores.
 - MongoDB-backed admin-curated dataset workflows
 - Authenticated full-stack product architecture
 - External API enrichment with TMDB

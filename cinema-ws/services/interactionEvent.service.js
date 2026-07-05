@@ -9,6 +9,7 @@ const INTERACTION_EVENT_TYPES = Object.freeze([
   "suggestion_ignored",
   "suggestion_impression",
   "card_opened",
+  "explanation_viewed",
   "search_performed",
   "filter_used",
   "library_removed",

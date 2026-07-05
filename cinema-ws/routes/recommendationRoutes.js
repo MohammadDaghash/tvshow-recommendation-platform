@@ -1,5 +1,6 @@
 const express = require("express");
 const recommendationController = require("../controllers/recommendation.controller");
+const recommendationExplanationController = require("../controllers/recommendationExplanation.controller");
 const {
   adminOnly,
   optionalAuth,
@@ -11,6 +12,12 @@ const router = express.Router();
 router.get("/", optionalAuth, recommendationController.getRecommendations);
 
 router.post("/from-tmdb", protect, recommendationController.addTMDBToLibrary);
+
+router.post(
+  "/:id/explanation",
+  protect,
+  recommendationExplanationController.getExplanation,
+);
 
 router.post("/:id/watch", protect, recommendationController.markAsWatched);
 

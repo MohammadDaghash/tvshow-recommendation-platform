@@ -1,3 +1,5 @@
+import { useRecommendationExplanation } from "../hooks/useRecommendationExplanation";
+
 function ActionPanel({ actions, isDemoMode }) {
   return (
     <div className="action-panel">
@@ -162,7 +164,20 @@ export function DetailsModal({
   setDetailsShow,
   setShowToDelete,
 }) {
+  const {
+    emphasizedFactor,
+    error: explanationError,
+    explanation,
+    fetchExplanation,
+    loading: explanationLoading,
+  } = useRecommendationExplanation(detailsShow?._id);
+
   if (!detailsShow) return null;
+
+  const canExplainRecommendation =
+    Boolean(detailsShow.scoreBreakdown) &&
+    !detailsShow.isAISuggestion &&
+    detailsShow.status !== "watched";
 
   return (
     <div
@@ -211,14 +226,50 @@ export function DetailsModal({
               )}
 
               {detailsShow.scoreBreakdown && (
-                <p className="score-breakdown">
-                  Taste: {detailsShow.scoreBreakdown.genreSimilarity}% -
-                  Category Preference:{" "}
-                  {detailsShow.scoreBreakdown.categoryPreference}% - TMDB:{" "}
-                  {detailsShow.scoreBreakdown.tmdbRating}% - Popularity:{" "}
-                  {detailsShow.scoreBreakdown.popularity}% - Year Match:{" "}
-                  {detailsShow.scoreBreakdown.yearSimilarity}%
-                </p>
+                <div className="score-breakdown">
+                  <p className="score-breakdown-text">
+                    Taste: {detailsShow.scoreBreakdown.genreSimilarity}% -
+                    Category Preference:{" "}
+                    {detailsShow.scoreBreakdown.categoryPreference}% - TMDB:{" "}
+                    {detailsShow.scoreBreakdown.tmdbRating}% - Popularity:{" "}
+                    {detailsShow.scoreBreakdown.popularity}% - Year Match:{" "}
+                    {detailsShow.scoreBreakdown.yearSimilarity}%
+                  </p>
+
+                  {canExplainRecommendation && (
+                    <div className="recommendation-explanation">
+                      <button
+                        className="explanation-button"
+                        disabled={explanationLoading}
+                        onClick={() => fetchExplanation(detailsShow)}
+                        type="button"
+                      >
+                        {explanationLoading ? "Writing..." : "Why this pick?"}
+                      </button>
+
+                      {emphasizedFactor && explanation && (
+                        <span className="explanation-factor">
+                          {emphasizedFactor}
+                        </span>
+                      )}
+
+                      {explanationLoading && (
+                        <p className="explanation-status">
+                          <span className="mini-spinner" />
+                          Writing a short explanation...
+                        </p>
+                      )}
+
+                      {explanationError && (
+                        <p className="explanation-error">{explanationError}</p>
+                      )}
+
+                      {explanation && (
+                        <p className="explanation-text">{explanation}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               {detailsShow.similarWatchedShows?.length > 0 && (

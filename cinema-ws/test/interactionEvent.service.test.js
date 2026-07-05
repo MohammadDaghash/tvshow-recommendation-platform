@@ -155,6 +155,35 @@ test("buildInteractionEvent supports card opens and suggestion impressions", () 
   );
 });
 
+test("buildInteractionEvent supports recommendation explanation views", () => {
+  assert.deepEqual(
+    buildInteractionEvent({
+      userId: "user-1",
+      eventType: "explanation_viewed",
+      tvShowId: "show-1",
+      title: "Severance",
+      sourcePage: "want",
+      position: 2,
+      metadata: {
+        claudeModel: "claude-haiku-4-5",
+        latencyMs: 1200,
+      },
+    }),
+    {
+      user: "user-1",
+      eventType: "explanation_viewed",
+      tvShow: "show-1",
+      title: "Severance",
+      sourcePage: "want",
+      position: 2,
+      metadata: {
+        claudeModel: "claude-haiku-4-5",
+        latencyMs: 1200,
+      },
+    },
+  );
+});
+
 test("buildInteractionEvent supports honest admin catalog maintenance events", () => {
   assert.deepEqual(
     [
