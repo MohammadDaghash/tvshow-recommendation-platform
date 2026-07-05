@@ -6,6 +6,7 @@ const {
   AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
+  getFavoriteGenreIds,
   getPreferredOriginalLanguage,
   resolveSuggestionExcludedShows,
   resolveSuggestionIgnoredSuggestions,
@@ -121,6 +122,50 @@ test("buildTMDBRecommendations ranks preferred-language shows above higher-rated
   );
 });
 
+test("buildTMDBRecommendations exposes vector similarity math for personalized ranking", () => {
+  const recommendations = buildTMDBRecommendations({
+    tmdbResults: [
+      {
+        ...tmdbShow(1, 8.1, "en"),
+        name: "Matching Prestige Drama",
+        genre_ids: [18, 80],
+        popularity: 30,
+        first_air_date: "2005-01-01",
+      },
+      {
+        ...tmdbShow(2, 9.9, "en"),
+        name: "High Rated Sitcom",
+        genre_ids: [35],
+        popularity: 100,
+        first_air_date: "2024-01-01",
+      },
+    ],
+    watchedShows: [
+      {
+        title: "Breaking Bad",
+        genres: ["Drama & Romance", "Mystery & Thriller"],
+        userRating: 10,
+        tmdbRating: 9,
+        popularity: 90,
+        year: 2008,
+        originalLanguage: "en",
+      },
+    ],
+    excludedTMDBIds: [],
+    excludedTitles: [],
+    preferredOriginalLanguage: "en",
+    limit: 2,
+  });
+
+  assert.equal(recommendations[0].tmdbId, 1);
+  assert.equal(recommendations[0].recommendationModel, "vector-content-v1");
+  assert.ok(recommendations[0].scoreBreakdown.vectorSimilarity > 90);
+  assert.ok(
+    recommendations[0].scoreBreakdown.vectorSimilarity >
+      recommendations[1].scoreBreakdown.vectorSimilarity,
+  );
+});
+
 test("getPreferredOriginalLanguage defaults to English and learns from rated history", () => {
   assert.equal(getPreferredOriginalLanguage([]), "en");
   assert.equal(
@@ -137,6 +182,24 @@ test("getPreferredOriginalLanguage defaults to English and learns from rated his
       },
     ]),
     "ko",
+  );
+});
+
+test("getFavoriteGenreIds supports canonical UI genres for TMDB discovery", () => {
+  assert.deepEqual(
+    getFavoriteGenreIds([
+      {
+        title: "Breaking Bad",
+        genres: ["Drama & Romance", "Mystery & Thriller"],
+        userRating: 10,
+      },
+      {
+        title: "Arcane",
+        genres: ["Science-Fiction & Fantasy", "Action & Adventure"],
+        userRating: 9,
+      },
+    ]),
+    [18, 80, 10765],
   );
 });
 

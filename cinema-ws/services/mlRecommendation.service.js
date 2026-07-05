@@ -1,7 +1,9 @@
 const {
-  createCategoryVector,
+  buildShowFeatureVector,
+  buildUserTasteVector,
   cosineSimilarity,
-} = require("../utils/recommendation.utils");
+  scoreCandidateForUser,
+} = require("./vectorRecommendation.service");
 
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 const AI_SUGGESTION_CANDIDATE_LIMIT = 80;
@@ -10,30 +12,38 @@ const AI_SUGGESTION_FETCH_PAGE_COUNT = 10;
 const genreMap = {
   Comedy: 35,
   Drama: 18,
+  "Drama & Romance": 18,
   Romance: 10749,
   Crime: 80,
   Thriller: 53,
   Mystery: 9648,
+  "Mystery & Thriller": 80,
   Horror: 27,
   Fantasy: 10765,
   "Sci-Fi": 10765,
   "Science Fiction": 10765,
+  "Science-Fiction & Fantasy": 10765,
+  "Fantasy & Sci-Fi": 10765,
+  Supernatural: 10765,
+  Action: 10759,
   Adventure: 10759,
+  "Action & Adventure": 10759,
   Animation: 16,
   Anime: 16,
+  History: 36,
 };
 
 const genreNameMap = {
-  18: "Drama",
+  18: "Drama & Romance",
   35: "Comedy",
-  10749: "Romance",
-  80: "Crime",
-  53: "Thriller",
-  9648: "Mystery",
+  10749: "Drama & Romance",
+  80: "Mystery & Thriller",
+  53: "Mystery & Thriller",
+  9648: "Mystery & Thriller",
   27: "Horror",
-  10765: "Fantasy & Sci-Fi",
-  10759: "Adventure",
-  16: "Animation",
+  10765: "Science-Fiction & Fantasy",
+  10759: "Action & Adventure",
+  16: "Anime",
 };
 
 const normalizeTitle = (title) => {
@@ -83,33 +93,6 @@ const getLanguagePreferenceScore = (show, preferredOriginalLanguage = "en") => {
   }
 
   return candidateLanguage === preferredLanguage ? 100 : 30;
-};
-
-const createProfileVector = (watchedShows = []) => {
-  if (watchedShows.length === 0) {
-    return createCategoryVector([]);
-  }
-
-  const watchedVectors = watchedShows.map((show) => ({
-    vector: createCategoryVector(show.genres || []),
-    rating: show.userRating || 5,
-  }));
-
-  const totalRatingWeight = watchedVectors.reduce((sum, show) => {
-    return sum + show.rating;
-  }, 0);
-
-  if (totalRatingWeight === 0) {
-    return createCategoryVector([]);
-  }
-
-  return watchedVectors[0].vector.map((_, index) => {
-    const weightedSum = watchedVectors.reduce((total, show) => {
-      return total + show.vector[index] * show.rating;
-    }, 0);
-
-    return weightedSum / totalRatingWeight;
-  });
 };
 
 const getFavoriteGenreIds = (watchedShows = []) => {
@@ -209,6 +192,53 @@ const buildTMDBSuggestionRequest = ({
   };
 };
 
+const getShowYear = (show) => {
+  if (show.year) return Number(show.year);
+  if (show.first_air_date) return Number(show.first_air_date.slice(0, 4));
+
+  return null;
+};
+
+const buildVectorContext = ({
+  candidateShows = [],
+  preferredOriginalLanguage = "en",
+  watchedShows = [],
+}) => {
+  const popularities = [...candidateShows, ...watchedShows]
+    .map((show) => Number(show.popularity || 0))
+    .filter((popularity) => Number.isFinite(popularity));
+  const years = [...candidateShows, ...watchedShows]
+    .map(getShowYear)
+    .filter((year) => Number.isFinite(year));
+
+  return {
+    maxPopularity: Math.max(...popularities, 100),
+    minYear: years.length ? Math.min(...years) : 1990,
+    maxYear: years.length ? Math.max(...years) : new Date().getFullYear(),
+    preferredOriginalLanguage,
+  };
+};
+
+const buildCandidateShow = (show) => {
+  const showGenres = (show.genre_ids || [])
+    .map((id) => genreNameMap[id])
+    .filter(Boolean);
+
+  return {
+    tmdbId: show.id,
+    title: show.name,
+    genres: showGenres,
+    year: getShowYear(show),
+    imageUrl: show.poster_path ? `${TMDB_IMAGE_BASE_URL}${show.poster_path}` : "",
+    overview: show.overview,
+    tmdbRating: show.vote_average,
+    originalLanguage: show.original_language || null,
+    originCountry: show.origin_country || [],
+    voteCount: show.vote_count || 0,
+    popularity: show.popularity,
+  };
+};
+
 const buildTMDBRecommendations = ({
   tmdbResults = [],
   watchedShows = [],
@@ -221,93 +251,84 @@ const buildTMDBRecommendations = ({
   const excludedTitleSet = new Set(
     excludedTitles.map(normalizeTitle).filter(Boolean),
   );
-  const userProfileVector = createProfileVector(watchedShows);
   const isColdStart = watchedShows.length === 0;
-
-  const recommendations = tmdbResults
+  const candidateShows = tmdbResults
     .filter((show) => {
       return (
         !excludedTMDBIdSet.has(show.id) &&
         !excludedTitleSet.has(normalizeTitle(show.name))
       );
     })
-    .map((show) => {
-      const showGenres = show.genre_ids
-        .map((id) => genreNameMap[id])
-        .filter(Boolean);
+    .map(buildCandidateShow);
+  const vectorContext = buildVectorContext({
+    candidateShows,
+    preferredOriginalLanguage,
+    watchedShows,
+  });
+  const userTasteVector = buildUserTasteVector(watchedShows, vectorContext);
 
-      const showVector = createCategoryVector(showGenres);
-
-      const genreSimilarity = Math.round(
-        cosineSimilarity(userProfileVector, showVector) * 100,
-      );
-
-      const categoryPreference = genreSimilarity;
+  const recommendations = candidateShows.map((candidateShow) => {
+    const vectorScores = scoreCandidateForUser(
+      candidateShow,
+      userTasteVector,
+      vectorContext,
+    );
       const tmdbScore = Math.min(
         100,
-        Math.round((show.vote_average || 0) * 10),
+        Math.round((candidateShow.tmdbRating || 0) * 10),
       );
       const popularityScore = Math.min(
         100,
-        Math.round((show.popularity || 0) / 2),
+        Math.round((candidateShow.popularity || 0) / 2),
       );
       const yearSimilarity = 80;
       const languagePreference = getLanguagePreferenceScore(
-        show,
+        candidateShow,
         preferredOriginalLanguage,
       );
 
       const recommendationScore = isColdStart
         ? Math.round(tmdbScore * 0.75 + languagePreference * 0.25)
-        : Math.round(
-            genreSimilarity * 0.35 +
-              categoryPreference * 0.2 +
-              tmdbScore * 0.2 +
-              popularityScore * 0.1 +
-              yearSimilarity * 0.05 +
-              languagePreference * 0.1,
-          );
+        : vectorScores.recommendationScore;
+      const scoreBreakdown = isColdStart
+        ? {
+            vectorSimilarity: 0,
+            genreSimilarity: 0,
+            categoryPreference: 0,
+            tmdbRating: tmdbScore,
+            popularity: popularityScore,
+            yearSimilarity,
+            languagePreference,
+          }
+        : vectorScores.scoreBreakdown;
+      const candidateVector = buildShowFeatureVector(candidateShow, vectorContext);
 
       return {
-        tmdbId: show.id,
-        title: show.name,
-        genres: showGenres,
-        year: show.first_air_date
-          ? Number(show.first_air_date.slice(0, 4))
-          : null,
-        imageUrl: show.poster_path
-          ? `${TMDB_IMAGE_BASE_URL}${show.poster_path}`
-          : "",
-        overview: show.overview,
-        tmdbRating: show.vote_average,
-        originalLanguage: show.original_language || null,
-        originCountry: show.origin_country || [],
-        voteCount: show.vote_count || 0,
-        popularity: show.popularity,
+        ...candidateShow,
         recommendationScore,
         matchScore: recommendationScore,
+        recommendationModel: isColdStart
+          ? "tmdb-cold-start-v1"
+          : "vector-content-v1",
+        similarity: vectorScores.similarity,
         isAISuggestion: true,
-        scoreBreakdown: {
-          genreSimilarity,
-          categoryPreference,
-          tmdbRating: tmdbScore,
-          popularity: popularityScore,
-          yearSimilarity,
-          languagePreference,
-        },
+        scoreBreakdown,
         similarWatchedShows: watchedShows
           .map((watchedShow) => {
-            const watchedVector = createCategoryVector(watchedShow.genres || []);
+            const watchedVector = buildShowFeatureVector(
+              watchedShow,
+              vectorContext,
+            );
 
             return {
               title: watchedShow.title,
-              similarity: cosineSimilarity(showVector, watchedVector),
+              similarity: cosineSimilarity(candidateVector, watchedVector),
             };
           })
           .sort((a, b) => b.similarity - a.similarity)
           .slice(0, 3),
-      };
-    });
+    };
+  });
 
   const rankedRecommendations = recommendations.sort(
     (a, b) => b.recommendationScore - a.recommendationScore,
