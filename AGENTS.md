@@ -57,3 +57,35 @@ The probability/statistics course PDFs and other course books are private refere
 ## Main Rule
 
 Use statistics and ML concepts only when they naturally improve the product. Do not force theory into unrelated code.
+
+## Multi-Agent Workflow (Codex + Claude)
+
+This repo is worked on by two coding agents with a fixed role split, synced through git rather than chat memory.
+
+- **Codex:** implements, refactors, tests, commits, and deploys.
+- **Claude:** reviews diffs, critiques architecture/UI/ML approach, flags edge cases, and investigates confusing bugs. Does not rewrite the app unless explicitly asked.
+
+Before changing anything, an agent should:
+
+1. Read this file.
+2. Run `git status`.
+3. Review recent commits with `git log --oneline -5` (and `git show --stat HEAD` for the last change in detail).
+
+Rules:
+
+- Do not edit files the other agent is actively changing unless explicitly asked.
+- Do not commit secrets or course PDFs (see Course And Private Material Rules above).
+- Keep files under 1000 lines (see Coding Rules above).
+- Preserve auth, admin mode, demo mode, private user data, recommendations, and deployment setup unless a task explicitly changes them.
+
+For bigger tasks, leave a short handoff note instead of a long explanation:
+
+```
+Claude handoff:
+- Branch/commit:
+- Files changed:
+- What changed:
+- Tests run:
+- Known risks:
+- Suggested next step:
+```
