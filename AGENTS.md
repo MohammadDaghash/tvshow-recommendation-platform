@@ -60,32 +60,39 @@ Use statistics and ML concepts only when they naturally improve the product. Do 
 
 ## Multi-Agent Workflow (Codex + Claude)
 
-This repo is worked on by two coding agents with a fixed role split, synced through git rather than chat memory.
+This repo is worked on by two coding agents, synced through git rather than chat memory. Both agents have full access — either can edit code, refactor, test, commit, push, and deploy when a task requires it. There is no fixed "implementer vs reviewer" split; use judgment about whether a task calls for implementing, or for reviewing/critiquing without rewriting, and default to the narrower one when a task's scope is ambiguous.
 
-- **Codex:** implements, refactors, tests, commits, and deploys.
-- **Claude:** reviews diffs, critiques architecture/UI/ML approach, flags edge cases, and investigates confusing bugs. Does not rewrite the app unless explicitly asked.
-
-Before changing anything, an agent should:
+Before starting any task, an agent should:
 
 1. Read this file.
-2. Run `git status`.
-3. Review recent commits with `git log --oneline -5` (and `git show --stat HEAD` for the last change in detail).
+2. Run:
+   - `git status --short --branch`
+   - `git pull --rebase`
+   - `git log --oneline -5`
+   - `git show --stat --oneline HEAD`
 
 Rules:
 
-- Do not edit files the other agent is actively changing unless explicitly asked.
-- Do not commit secrets or course PDFs (see Course And Private Material Rules above).
+- Do not overwrite unrelated dirty files — if the working tree has changes you didn't make and weren't asked about, leave them alone.
+- Never force-push.
+- Never commit `.env` files, secrets, PDFs, or private course material (see Course And Private Material Rules above).
 - Keep files under 1000 lines (see Coding Rules above).
 - Preserve auth, admin mode, demo mode, private user data, recommendations, and deployment setup unless a task explicitly changes them.
 
-For bigger tasks, leave a short handoff note instead of a long explanation:
+After finishing a task:
+
+1. Run the relevant tests/builds.
+2. Commit with a clear message.
+3. Push to GitHub (never force-push).
+4. Leave a short handoff note instead of a long explanation:
 
 ```
-Claude handoff:
+Claude handoff:  (or "Codex handoff:" — whichever agent is leaving the note)
 - Branch/commit:
 - Files changed:
 - What changed:
-- Tests run:
+- Tests/builds run:
+- Deployment:
 - Known risks:
 - Suggested next step:
 ```
