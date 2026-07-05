@@ -17,11 +17,48 @@
   --cinema-danger: #f87171;
   --cinema-shadow: 0 34px 92px rgba(0, 0, 0, 0.54);
   --cinema-shadow-soft: 0 20px 48px rgba(0, 0, 0, 0.34);
+  --cinema-shadow-lift:
+    0 4px 12px rgba(0, 0, 0, 0.4), 0 46px 130px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --cinema-glow-gold: 0 0 50px rgba(234, 211, 138, 0.24);
+  --cinema-glow-teal: 0 0 50px rgba(120, 226, 194, 0.2);
+  --cinema-glow-blue: 0 0 50px rgba(143, 184, 255, 0.22);
   --cinema-radius: 8px;
+
+  /* Premium motion: expo-out for entrances/lifts, soft spring for presses */
+  --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Editorial display face for headings, paired with the clean Inter body */
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Shared premium recipes — reuse these tokens/keyframes rather than inventing
+   new blur/shadow/easing values per component, so the glass/3D language stays
+   consistent across cards, modals, and controls. */
+@keyframes sheen-sweep {
+  0% {
+    transform: translateX(-140%) skewX(-14deg);
+  }
+  100% {
+    transform: translateX(240%) skewX(-14deg);
+  }
+}
+
+@keyframes tilt-glare-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 html {
@@ -40,9 +77,7 @@ body {
     var(--cinema-black);
   background-attachment: fixed;
   color: var(--cinema-text);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  font-family: var(--font-sans);
   letter-spacing: 0;
   overflow-x: hidden;
 }
@@ -190,6 +225,7 @@ button {
     linear-gradient(180deg, rgba(28, 36, 54, 0.94), rgba(9, 12, 20, 0.86));
   box-shadow:
     var(--cinema-shadow),
+    var(--cinema-shadow-lift),
     inset 0 1px 0 var(--cinema-glass-highlight),
     inset 0 -1px 0 var(--cinema-glass-lowlight);
   backdrop-filter: blur(20px);
@@ -263,13 +299,18 @@ button {
 
 h1 {
   margin: 0;
-  color: var(--cinema-text);
-  font-size: 58px;
-  font-weight: 800;
+  background: linear-gradient(180deg, #fff8ea 0%, #f3e6c2 44%, #cdae74 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  font-family: var(--font-display);
+  font-size: 60px;
+  font-weight: 600;
   line-height: 1.02;
-  letter-spacing: 0;
+  letter-spacing: -0.5px;
   text-align: center;
-  text-shadow: 0 18px 54px rgba(0, 0, 0, 0.56);
+  filter: drop-shadow(0 18px 54px rgba(0, 0, 0, 0.56));
   overflow-wrap: anywhere;
 }
 
@@ -385,12 +426,12 @@ h1 {
     0 10px 24px rgba(0, 0, 0, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
   transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease,
-    filter 160ms ease;
+    transform 160ms var(--ease-premium),
+    box-shadow 160ms var(--ease-premium),
+    border-color 160ms var(--ease-premium),
+    background-color 160ms var(--ease-premium),
+    color 160ms var(--ease-premium),
+    filter 160ms var(--ease-premium);
 }
 
 .tab:active,
@@ -401,6 +442,7 @@ h1 {
 .save-button:active,
 .danger-button:active,
 .retry-button:active {
+  transition: transform 140ms var(--ease-spring);
   transform: translateY(1px) scale(0.99);
 }
 
@@ -435,6 +477,8 @@ h1 {
 }
 
 .active-tab {
+  position: relative;
+  overflow: hidden;
   border-color: rgba(234, 211, 138, 0.62);
   background:
     linear-gradient(180deg, rgba(234, 211, 138, 0.98), rgba(189, 151, 73, 0.92));
@@ -442,6 +486,43 @@ h1 {
   box-shadow:
     0 18px 36px rgba(234, 211, 138, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.active-tab:hover {
+  box-shadow:
+    0 18px 36px rgba(234, 211, 138, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    var(--cinema-glow-gold);
+}
+
+.add-show-button,
+.watch-button,
+.save-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.add-show-button::before,
+.watch-button::before,
+.save-button::before,
+.active-tab::before {
+  position: absolute;
+  top: 0;
+  left: -10%;
+  width: 40%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  content: "";
+  opacity: 0;
+}
+
+.add-show-button:hover::before,
+.watch-button:hover::before,
+.save-button:hover::before,
+.active-tab:hover::before {
+  animation: sheen-sweep 900ms var(--ease-premium);
+  opacity: 1;
 }
 
 .secondary-button,
@@ -470,7 +551,8 @@ h1 {
   box-shadow:
     0 18px 40px rgba(120, 226, 194, 0.23),
     0 0 0 1px rgba(120, 226, 194, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    var(--cinema-glow-teal);
   transform: translateY(-2px);
 }
 
@@ -502,9 +584,9 @@ h1 {
     0 14px 32px rgba(0, 0, 0, 0.2);
   outline: none;
   transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    background-color 160ms ease;
+    border-color 160ms var(--ease-premium),
+    box-shadow 160ms var(--ease-premium),
+    background-color 160ms var(--ease-premium);
 }
 
 .search-input {
@@ -529,7 +611,8 @@ h1 {
   border-color: rgba(234, 211, 138, 0.62);
   box-shadow:
     0 0 0 4px rgba(234, 211, 138, 0.09),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    var(--cinema-glow-gold);
 }
 
 .show-section {
@@ -551,8 +634,9 @@ h1 {
   gap: 12px;
   margin: 0 0 18px;
   color: var(--cinema-text);
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 850;
+  font-weight: 700;
   line-height: 1.15;
   letter-spacing: 0;
   text-align: left;

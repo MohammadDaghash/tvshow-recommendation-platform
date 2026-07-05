@@ -3,12 +3,21 @@ import {
   getLibraryCardStatusText,
   getSuggestionBadgeText,
 } from "../cardPresentation";
+import { useTilt } from "../hooks/useTilt";
 
 export function LibraryCard({ show, formatGenres, onSelect }) {
   const cardStatusText = getLibraryCardStatusText(show);
+  const { ref, handlePointerMove, handlePointerLeave } = useTilt();
 
   return (
-    <article className="tv-card" key={show._id} onClick={() => onSelect(show)}>
+    <article
+      className="tv-card"
+      key={show._id}
+      ref={ref}
+      onClick={() => onSelect(show)}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+    >
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />
         <span className="card-badge tmdb-badge">
@@ -37,16 +46,21 @@ export function SuggestionCard({
   onQuickIgnore,
   onSelect,
 }) {
+  const { ref, handlePointerMove, handlePointerLeave } = useTilt();
+
   return (
     <article
       className="tv-card ai-card"
       key={show.tmdbId || show.title}
+      ref={ref}
       onClick={() =>
         onSelect({
           ...show,
           isAISuggestion: true,
         })
       }
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
     >
       <div className="poster-frame">
         <img src={show.imageUrl} alt={show.title} />

@@ -9,26 +9,29 @@
   background:
     linear-gradient(180deg, rgba(2, 4, 9, 0.7), rgba(2, 4, 9, 0.86)),
     rgba(2, 4, 9, 0.74);
-  backdrop-filter: blur(22px) saturate(1.08);
+  backdrop-filter: blur(34px) saturate(1.2);
   overflow-y: auto;
   overscroll-behavior: contain;
-  animation: overlay-fade-in 180ms ease both;
+  animation: overlay-fade-in 220ms var(--ease-premium) both;
 }
 
 .rating-modal,
 .add-show-modal,
 .details-modal,
 .confirm-modal {
+  position: relative;
   border: 1px solid var(--cinema-border-strong);
   border-radius: var(--cinema-radius);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.105), transparent 58%),
     var(--cinema-panel-strong);
   box-shadow:
-    var(--cinema-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-  animation: panel-in 220ms ease both;
+    var(--cinema-shadow-lift),
+    var(--cinema-glow-blue),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(26px) saturate(1.16);
+  animation: modal-panel-in 360ms var(--ease-premium) 60ms both;
 }
 
 .rating-modal,
@@ -273,9 +276,10 @@
 .details-content h2 {
   margin: 0 34px 12px 0;
   color: var(--cinema-text);
+  font-family: var(--font-display);
   font-size: 34px;
-  font-weight: 850;
-  line-height: 1.1;
+  font-weight: 600;
+  line-height: 1.12;
   letter-spacing: 0;
 }
 
@@ -353,13 +357,17 @@
   transition:
     border-color 160ms ease,
     color 160ms ease,
-    transform 160ms ease;
+    transform 220ms var(--ease-spring);
 }
 
 .explanation-button:hover:not(:disabled) {
   border-color: rgba(120, 226, 194, 0.55);
   color: var(--cinema-text);
   transform: translateY(-1px);
+}
+
+.explanation-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.96);
 }
 
 .explanation-button:disabled {
@@ -430,6 +438,18 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

@@ -9,6 +9,17 @@
   }
 }
 
+/* Pointer-tracked 3D tilt and glare are meant for a fine pointer that can
+   hover; the tv-card rotateX/rotateY hover transform is already scoped to
+   (hover: hover) and (pointer: fine) in cards.css, but its glare pseudo-
+   element only relies on --glare-opacity defaulting to 0, so reinforce that
+   here in case a stylus or other non-touch-but-coarse pointer slips through. */
+@media (hover: none), (pointer: coarse) {
+  .tv-card::after {
+    opacity: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .app {
     padding: 18px;
@@ -16,6 +27,31 @@
 
   .hero-panel {
     padding: 26px 20px;
+    backdrop-filter: blur(12px);
+  }
+
+  .control-panel,
+  .lead-carousel-panel {
+    backdrop-filter: blur(12px);
+  }
+
+  .initial-state-card {
+    backdrop-filter: blur(12px);
+  }
+
+  .modal-overlay {
+    backdrop-filter: blur(14px) saturate(1.2);
+  }
+
+  .rating-modal,
+  .add-show-modal,
+  .details-modal,
+  .confirm-modal {
+    backdrop-filter: blur(14px) saturate(1.16);
+  }
+
+  .card-badge {
+    backdrop-filter: blur(10px) saturate(150%);
   }
 
   h1 {
@@ -62,6 +98,7 @@
   h1 {
     font-size: 36px;
     line-height: 1.04;
+    letter-spacing: -0.2px;
   }
 
   .hero-stats {
@@ -150,6 +187,11 @@
     padding: 16px;
   }
 
+  .training-health-card,
+  .training-health-detail {
+    backdrop-filter: blur(10px);
+  }
+
   .training-health-header,
   .training-health-grid,
   .training-health-columns,
@@ -226,6 +268,7 @@
   h1 {
     font-size: 29px;
     line-height: 1.08;
+    letter-spacing: 0;
   }
 
   .tv-card {
@@ -271,4 +314,14 @@
     height: 310px;
   }
 
+}
+
+/* Loading-screen token consistency: base.css is treated as frozen shared
+   foundation for this pass, so these two overrides live here instead. */
+.loading-spinner {
+  box-shadow: var(--cinema-glow-gold);
+}
+
+.initial-state-card {
+  animation-timing-function: var(--ease-premium);
 }
