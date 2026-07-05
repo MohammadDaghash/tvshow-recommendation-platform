@@ -33,6 +33,17 @@ const cleanMetadata = (metadata) => {
   );
 };
 
+const firstDefined = (...values) =>
+  values.find((value) => value !== undefined && value !== null);
+
+const toOptionalNumber = (value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : undefined;
+};
+
 const buildInteractionEvent = ({
   userId,
   eventType,
@@ -42,7 +53,13 @@ const buildInteractionEvent = ({
   title,
   sourcePage,
   position,
+  actionType,
+  previousStatus,
+  nextStatus,
   modelVersion,
+  recommendationScore,
+  matchScore,
+  tmdbRating,
   rating,
   status,
   metadata,
@@ -57,10 +74,11 @@ const buildInteractionEvent = ({
     throw new Error(`Unsupported interaction event: ${eventType}`);
   }
 
+  const cleanedMetadata = cleanMetadata(metadata);
   const event = {
     user,
     eventType,
-    metadata: cleanMetadata(metadata),
+    metadata: cleanedMetadata,
   };
 
   if (tvShowId) event.tvShow = normalizeId(tvShowId);
@@ -69,12 +87,46 @@ const buildInteractionEvent = ({
   }
   if (tmdbId) event.tmdbId = Number(tmdbId);
   if (title) event.title = title;
-  if (sourcePage) event.sourcePage = sourcePage;
-  if (position !== undefined && position !== null) {
-    event.position = Number(position);
+  if (firstDefined(sourcePage, cleanedMetadata.sourcePage)) {
+    event.sourcePage = firstDefined(sourcePage, cleanedMetadata.sourcePage);
   }
-  if (modelVersion) event.modelVersion = modelVersion;
-  if (status) event.status = status;
+
+  const cleanPosition = toOptionalNumber(
+    firstDefined(position, cleanedMetadata.position),
+  );
+  if (cleanPosition !== undefined) {
+    event.position = cleanPosition;
+  }
+  if (firstDefined(modelVersion, cleanedMetadata.modelVersion)) {
+    event.modelVersion = firstDefined(modelVersion, cleanedMetadata.modelVersion);
+  }
+  if (firstDefined(status, cleanedMetadata.nextStatus)) {
+    event.status = firstDefined(status, cleanedMetadata.nextStatus);
+  }
+  if (firstDefined(actionType, cleanedMetadata.actionType)) {
+    event.actionType = firstDefined(actionType, cleanedMetadata.actionType);
+  }
+  if (firstDefined(previousStatus, cleanedMetadata.previousStatus)) {
+    event.previousStatus = firstDefined(
+      previousStatus,
+      cleanedMetadata.previousStatus,
+    );
+  }
+  if (firstDefined(nextStatus, cleanedMetadata.nextStatus)) {
+    event.nextStatus = firstDefined(nextStatus, cleanedMetadata.nextStatus);
+  }
+
+  const promotedNumbers = {
+    recommendationScore: toOptionalNumber(
+      firstDefined(recommendationScore, cleanedMetadata.recommendationScore),
+    ),
+    matchScore: toOptionalNumber(firstDefined(matchScore, cleanedMetadata.matchScore)),
+    tmdbRating: toOptionalNumber(firstDefined(tmdbRating, cleanedMetadata.tmdbRating)),
+  };
+
+  for (const [field, value] of Object.entries(promotedNumbers)) {
+    if (value !== undefined) event[field] = value;
+  }
 
   if (rating !== undefined && rating !== null) {
     const numericRating = Number(rating);

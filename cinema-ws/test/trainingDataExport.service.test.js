@@ -233,6 +233,60 @@ test("parseTrainingExportArgs defaults to text and supports json and limit", () 
   });
 });
 
+test("buildTrainingDataExport exposes linked source pages and action transitions", () => {
+  const exportData = buildTrainingDataExport({
+    recommendationLogs: [
+      {
+        _id: "log-1",
+        user: "user-1",
+        modelVersion: "baseline-v1",
+        source: "tmdb",
+        page: "ai",
+        items: [
+          {
+            tmdbId: 1396,
+            title: "Breaking Bad",
+            position: 1,
+            score: 91,
+          },
+        ],
+      },
+    ],
+    userInteractions: [
+      {
+        user: "user-1",
+        recommendationLog: "log-1",
+        tmdbId: 1396,
+        eventType: "card_opened",
+        sourcePage: "ai",
+        actionType: "card_opened",
+      },
+    ],
+    recommendationFeedback: [
+      {
+        user: "user-1",
+        recommendationLog: "log-1",
+        tmdbId: 1396,
+        action: "accepted_watched",
+        sourcePage: "ai",
+        actionType: "move_to_watched",
+        previousStatus: "ai_suggestion",
+        nextStatus: "watched",
+        rating: 9,
+      },
+    ],
+  });
+
+  assert.deepEqual(exportData.rows[0].sourcePages, ["ai"]);
+  assert.deepEqual(exportData.rows[0].actionTypes, [
+    "card_opened",
+    "move_to_watched",
+  ]);
+  assert.deepEqual(exportData.rows[0].statusTransitions, [
+    "ai_suggestion->watched",
+  ]);
+});
+
 test("buildTrainingDataExport sorts newest recommendation logs first", () => {
   const exportData = buildTrainingDataExport({
     recommendationLogs: [

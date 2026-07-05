@@ -70,8 +70,60 @@ test("buildRecommendationFeedback creates supervised feedback labels", () => {
       tmdbId: 95396,
       action: "accepted_watched",
       rating: 9,
+      sourcePage: "ai",
       metadata: {
         sourcePage: "ai",
+      },
+    },
+  );
+});
+
+test("buildRecommendationFeedback promotes source and score context for ML joins", () => {
+  assert.deepEqual(
+    buildRecommendationFeedback({
+      userId: "user-1",
+      recommendationLogId: "log-1",
+      tvShowId: "show-1",
+      tmdbId: 95396,
+      action: "accepted_watching",
+      metadata: {
+        sourcePage: "ai",
+        position: 4,
+        modelVersion: "baseline-v1",
+        actionType: "move_to_currently_watching",
+        previousStatus: "ai_suggestion",
+        nextStatus: "watching",
+        recommendationScore: 91,
+        matchScore: 93,
+        tmdbRating: 8.4,
+        ignoredValue: undefined,
+      },
+    }),
+    {
+      user: "user-1",
+      recommendationLog: "log-1",
+      tvShow: "show-1",
+      tmdbId: 95396,
+      action: "accepted_watching",
+      sourcePage: "ai",
+      position: 4,
+      modelVersion: "baseline-v1",
+      actionType: "move_to_currently_watching",
+      previousStatus: "ai_suggestion",
+      nextStatus: "watching",
+      recommendationScore: 91,
+      matchScore: 93,
+      tmdbRating: 8.4,
+      metadata: {
+        sourcePage: "ai",
+        position: 4,
+        modelVersion: "baseline-v1",
+        actionType: "move_to_currently_watching",
+        previousStatus: "ai_suggestion",
+        nextStatus: "watching",
+        recommendationScore: 91,
+        matchScore: 93,
+        tmdbRating: 8.4,
       },
     },
   );

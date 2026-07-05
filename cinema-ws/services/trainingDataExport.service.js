@@ -24,6 +24,10 @@ const cleanObject = (value) => {
   );
 };
 
+const uniqueCompact = (values) => {
+  return [...new Set(values.filter(Boolean).map((value) => String(value)))];
+};
+
 const isValidRating = (value) => {
   if (value === undefined || value === null || value === "") return false;
 
@@ -159,9 +163,38 @@ const getSignalContext = ({ log, signals }) => {
   };
 };
 
+const getSignalField = (signal, field) => signal[field] || signal.metadata?.[field];
+
+const getSignalFeatureContext = (signals) => {
+  const linkedSignals = [...signals.interactions, ...signals.feedback];
+  const sourcePages = uniqueCompact(
+    linkedSignals.map((signal) => getSignalField(signal, "sourcePage")),
+  );
+  const actionTypes = uniqueCompact(
+    linkedSignals.map((signal) => getSignalField(signal, "actionType")),
+  );
+  const statusTransitions = uniqueCompact(
+    linkedSignals.map((signal) => {
+      const previousStatus = getSignalField(signal, "previousStatus");
+      const nextStatus = getSignalField(signal, "nextStatus");
+
+      return previousStatus && nextStatus
+        ? `${previousStatus}->${nextStatus}`
+        : "";
+    }),
+  );
+
+  return {
+    actionTypes,
+    sourcePages,
+    statusTransitions,
+  };
+};
+
 const createTrainingRow = ({ log, item, showLookup, signals }) => {
   const metadata = getShowMetadata(item, showLookup);
   const signalContext = getSignalContext({ log, signals });
+  const signalFeatureContext = getSignalFeatureContext(signals);
   const feedbackActions = signals.feedback.map((feedback) => feedback.action);
   const ratingFeedback = signals.feedback.find((feedback) =>
     isValidRating(feedback.rating),
@@ -205,6 +238,9 @@ const createTrainingRow = ({ log, item, showLookup, signals }) => {
     interactionCount: signals.interactions.length,
     feedbackCount: signals.feedback.length,
     feedbackActions,
+    sourcePages: signalFeatureContext.sourcePages,
+    actionTypes: signalFeatureContext.actionTypes,
+    statusTransitions: signalFeatureContext.statusTransitions,
   };
 };
 

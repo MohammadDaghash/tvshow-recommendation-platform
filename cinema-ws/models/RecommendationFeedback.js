@@ -40,6 +40,52 @@ const recommendationFeedbackSchema = new mongoose.Schema(
       index: true,
     },
 
+    sourcePage: {
+      type: String,
+      index: true,
+    },
+
+    position: {
+      type: Number,
+      min: 0,
+    },
+
+    modelVersion: {
+      type: String,
+      index: true,
+    },
+
+    actionType: {
+      type: String,
+      index: true,
+    },
+
+    previousStatus: {
+      type: String,
+    },
+
+    nextStatus: {
+      type: String,
+    },
+
+    recommendationScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+
+    matchScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+
+    tmdbRating: {
+      type: Number,
+      min: 0,
+      max: 10,
+    },
+
     rating: {
       type: Number,
       min: 0,

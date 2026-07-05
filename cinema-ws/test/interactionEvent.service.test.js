@@ -36,10 +36,58 @@ test("buildInteractionEvent creates a clean user interaction payload", () => {
     sourcePage: "ai",
     rating: 9,
     status: "watched",
+    matchScore: 87,
     metadata: {
       matchScore: 87,
     },
   });
+});
+
+test("buildInteractionEvent promotes ML-ready action context from metadata", () => {
+  assert.deepEqual(
+    buildInteractionEvent({
+      userId: "user-1",
+      eventType: "status_changed",
+      tvShowId: "show-1",
+      title: "Breaking Bad",
+      metadata: {
+        sourcePage: "watching",
+        position: 3,
+        actionType: "move_to_want_to_watch",
+        previousStatus: "watching",
+        nextStatus: "want",
+        recommendationScore: 89,
+        matchScore: 91,
+        tmdbRating: 8.9,
+        ignoredValue: undefined,
+      },
+    }),
+    {
+      user: "user-1",
+      eventType: "status_changed",
+      tvShow: "show-1",
+      title: "Breaking Bad",
+      sourcePage: "watching",
+      position: 3,
+      status: "want",
+      actionType: "move_to_want_to_watch",
+      previousStatus: "watching",
+      nextStatus: "want",
+      recommendationScore: 89,
+      matchScore: 91,
+      tmdbRating: 8.9,
+      metadata: {
+        sourcePage: "watching",
+        position: 3,
+        actionType: "move_to_want_to_watch",
+        previousStatus: "watching",
+        nextStatus: "want",
+        recommendationScore: 89,
+        matchScore: 91,
+        tmdbRating: 8.9,
+      },
+    },
+  );
 });
 
 test("buildInteractionEvent rejects missing users and unsupported events", () => {

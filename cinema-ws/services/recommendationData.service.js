@@ -17,6 +17,17 @@ const cleanObject = (value) => {
   );
 };
 
+const firstDefined = (...values) =>
+  values.find((value) => value !== undefined && value !== null);
+
+const toOptionalNumber = (value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : undefined;
+};
+
 const buildRecommendationLogItem = (item, index) => {
   const normalizedItem = {
     title: item.title,
@@ -66,6 +77,15 @@ const buildRecommendationFeedback = ({
   tmdbId,
   action,
   rating,
+  sourcePage,
+  position,
+  modelVersion,
+  actionType,
+  previousStatus,
+  nextStatus,
+  recommendationScore,
+  matchScore,
+  tmdbRating,
   metadata,
 }) => {
   const user = normalizeId(userId);
@@ -78,10 +98,11 @@ const buildRecommendationFeedback = ({
     throw new Error("Feedback action is required");
   }
 
+  const cleanedMetadata = cleanObject(metadata);
   const feedback = {
     user,
     action,
-    metadata: cleanObject(metadata),
+    metadata: cleanedMetadata,
   };
 
   if (recommendationLogId) {
@@ -89,6 +110,48 @@ const buildRecommendationFeedback = ({
   }
   if (tvShowId) feedback.tvShow = normalizeId(tvShowId);
   if (tmdbId) feedback.tmdbId = Number(tmdbId);
+  if (firstDefined(sourcePage, cleanedMetadata.sourcePage)) {
+    feedback.sourcePage = firstDefined(sourcePage, cleanedMetadata.sourcePage);
+  }
+
+  const cleanPosition = toOptionalNumber(
+    firstDefined(position, cleanedMetadata.position),
+  );
+  if (cleanPosition !== undefined) {
+    feedback.position = cleanPosition;
+  }
+  if (firstDefined(modelVersion, cleanedMetadata.modelVersion)) {
+    feedback.modelVersion = firstDefined(modelVersion, cleanedMetadata.modelVersion);
+  }
+  if (firstDefined(actionType, cleanedMetadata.actionType)) {
+    feedback.actionType = firstDefined(actionType, cleanedMetadata.actionType);
+  }
+  if (firstDefined(previousStatus, cleanedMetadata.previousStatus)) {
+    feedback.previousStatus = firstDefined(
+      previousStatus,
+      cleanedMetadata.previousStatus,
+    );
+  }
+  if (firstDefined(nextStatus, cleanedMetadata.nextStatus)) {
+    feedback.nextStatus = firstDefined(nextStatus, cleanedMetadata.nextStatus);
+  }
+
+  const promotedNumbers = {
+    recommendationScore: toOptionalNumber(
+      firstDefined(recommendationScore, cleanedMetadata.recommendationScore),
+    ),
+    matchScore: toOptionalNumber(
+      firstDefined(matchScore, cleanedMetadata.matchScore),
+    ),
+    tmdbRating: toOptionalNumber(
+      firstDefined(tmdbRating, cleanedMetadata.tmdbRating),
+    ),
+  };
+
+  for (const [field, value] of Object.entries(promotedNumbers)) {
+    if (value !== undefined) feedback[field] = value;
+  }
+
   if (rating !== undefined && rating !== null) {
     const numericRating = Number(rating);
 

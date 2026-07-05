@@ -61,8 +61,39 @@ const userInteractionSchema = new mongoose.Schema(
       min: 0,
     },
 
+    actionType: {
+      type: String,
+      index: true,
+    },
+
+    previousStatus: {
+      type: String,
+    },
+
+    nextStatus: {
+      type: String,
+    },
+
     modelVersion: {
       type: String,
+    },
+
+    recommendationScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+
+    matchScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+    },
+
+    tmdbRating: {
+      type: Number,
+      min: 0,
+      max: 10,
     },
 
     rating: {
