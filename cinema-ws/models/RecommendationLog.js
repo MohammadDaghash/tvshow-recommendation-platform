@@ -30,6 +30,10 @@ const recommendationLogItemSchema = new mongoose.Schema(
       required: true,
     },
 
+    modelVersion: {
+      type: String,
+    },
+
     scoreBreakdown: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

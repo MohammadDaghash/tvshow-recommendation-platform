@@ -212,7 +212,7 @@ const createTrainingRow = ({ log, item, showLookup, signals }) => {
     userId: toId(log.user),
     actorRole: signalContext.actorRole,
     dataScope: signalContext.dataScope,
-    modelVersion: log.modelVersion || "unknown",
+    modelVersion: item.modelVersion || log.modelVersion || "unknown",
     source: log.source || "",
     page: log.page || "",
     shownAt: log.createdAt ? new Date(log.createdAt).toISOString() : null,

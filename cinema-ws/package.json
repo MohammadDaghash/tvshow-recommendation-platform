@@ -22,6 +22,8 @@
     "report:baseline:json": "node scripts/baselineRecommendationReport.js --json",
     "report:signals": "node scripts/recommendationSignalReport.js",
     "report:signals:json": "node scripts/recommendationSignalReport.js --json",
+    "compare:models": "node scripts/compareRecommendationModels.js",
+    "compare:models:json": "node scripts/compareRecommendationModels.js --json",
     "export:training-data": "node scripts/exportTrainingData.js",
     "export:training-data:json": "node scripts/exportTrainingData.js --json",
     "analyze:training-data": "node scripts/analyzeTrainingData.js",

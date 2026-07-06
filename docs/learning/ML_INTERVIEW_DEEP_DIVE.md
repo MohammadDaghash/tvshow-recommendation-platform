@@ -178,6 +178,38 @@ The backfill is user-scoped and missing-field-only: it does not copy a normal
 user's private feedback into the public demo collection, and it does not
 overwrite existing ignored-suggestion metadata.
 
+## Model Version Comparison
+
+The project includes a backend report for comparing logged recommendation
+versions:
+
+```bash
+cd cinema-ws
+npm run compare:models
+```
+
+The report groups training rows by `modelVersion` and compares:
+
+- positive labelled outcome rate
+- accept rate
+- ignore rate
+- average recommendation score
+- Wilson confidence interval for positive labelled outcome rate
+
+Current result after adding the report:
+
+```text
+Rows: 920
+Models: 1
+Baseline: baseline-v1
+Comparison not ready yet
+```
+
+That is expected because the older frontend logged AI suggestion rows as
+`baseline-v1`. The tracking layer now records the real recommendation model
+version from the suggestion card, so future logs can compare
+`vector-content-v1.1` against `vector-content-v1.2-negative-feedback`.
+
 ## Leave-One-Out Evaluation
 
 To evaluate the model with sparse data, the project uses leave-one-out testing.

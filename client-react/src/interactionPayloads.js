@@ -1,4 +1,7 @@
-import { buildShowTrackingMetadata } from "./trackingMetadata.js";
+import {
+  buildShowTrackingMetadata,
+  getShowModelVersion,
+} from "./trackingMetadata.js";
 
 export const RECOMMENDATION_MODEL_VERSION = "baseline-v1";
 
@@ -17,6 +20,12 @@ const getShowIdentity = (show) =>
 const getRecommendationScore = (show) =>
   show.matchScore ?? show.recommendationScore ?? 0;
 
+const getPayloadModelVersion = (show) =>
+  getShowModelVersion(show) || RECOMMENDATION_MODEL_VERSION;
+
+const getRecommendationSetModelVersion = (shows = []) =>
+  shows.map(getPayloadModelVersion).find(Boolean) || RECOMMENDATION_MODEL_VERSION;
+
 export function buildCardOpenEvent(
   show,
   sourcePage,
@@ -29,7 +38,7 @@ export function buildCardOpenEvent(
     recommendationLogId,
     sourcePage,
     position,
-    modelVersion: RECOMMENDATION_MODEL_VERSION,
+    modelVersion: getPayloadModelVersion(show),
     metadata: buildShowTrackingMetadata(show, metadata),
   });
 }
@@ -46,7 +55,7 @@ export function buildSuggestionImpressionEvents(
       recommendationLogId,
       sourcePage,
       position: index + 1,
-      modelVersion: RECOMMENDATION_MODEL_VERSION,
+      modelVersion: getPayloadModelVersion(show),
       metadata: buildShowTrackingMetadata(show),
     }),
   );
@@ -54,7 +63,7 @@ export function buildSuggestionImpressionEvents(
 
 export function buildRecommendationLogPayload({ page, source, shows }) {
   return {
-    modelVersion: RECOMMENDATION_MODEL_VERSION,
+    modelVersion: getRecommendationSetModelVersion(shows),
     source,
     page,
     items: shows.map((show, index) =>
@@ -62,6 +71,7 @@ export function buildRecommendationLogPayload({ page, source, shows }) {
         ...getShowIdentity(show),
         score: getRecommendationScore(show),
         position: index + 1,
+        modelVersion: getPayloadModelVersion(show),
         scoreBreakdown: show.scoreBreakdown || {},
       }),
     ),

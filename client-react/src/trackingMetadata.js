@@ -12,10 +12,14 @@ export const getLibraryActionType = (status) => {
   return "status_changed";
 };
 
+export const getShowModelVersion = (show = {}) =>
+  show.recommendationModel || show.modelVersion;
+
 export const buildShowTrackingMetadata = (show = {}, metadata = {}) =>
   compactObject({
     ...metadata,
     matchScore: show.matchScore,
+    modelVersion: metadata.modelVersion ?? getShowModelVersion(show),
     recommendationScore: show.recommendationScore,
     tmdbRating: show.tmdbRating,
     popularity: show.popularity,

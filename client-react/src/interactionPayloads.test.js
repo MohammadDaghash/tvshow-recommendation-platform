@@ -12,6 +12,7 @@ const suggestion = {
   _id: "show-1",
   tmdbId: 95396,
   title: "Severance",
+  recommendationModel: "vector-content-v1.2-negative-feedback",
   recommendationScore: 91,
   matchScore: 93,
   scoreBreakdown: {
@@ -27,9 +28,10 @@ test("buildCardOpenEvent creates a raw card-open interaction", () => {
     title: "Severance",
     sourcePage: "ai",
     position: 2,
-    modelVersion: "baseline-v1",
+    modelVersion: "vector-content-v1.2-negative-feedback",
     metadata: {
       matchScore: 93,
+      modelVersion: "vector-content-v1.2-negative-feedback",
       recommendationScore: 91,
     },
   });
@@ -71,6 +73,7 @@ test("buildCardOpenEvent includes show metadata for future training data", () =>
       actionType: "card_opened",
       previousStatus: "want",
       matchScore: 93,
+      modelVersion: "vector-content-v1.2-negative-feedback",
       recommendationScore: 91,
       tmdbRating: 8.8,
       popularity: 77,
@@ -93,9 +96,10 @@ test("buildSuggestionImpressionEvents creates ranked impression events", () => {
       title: "Severance",
       sourcePage: "ai",
       position: 1,
-      modelVersion: "baseline-v1",
+      modelVersion: "vector-content-v1.2-negative-feedback",
       metadata: {
         matchScore: 93,
+        modelVersion: "vector-content-v1.2-negative-feedback",
         recommendationScore: 91,
       },
     },
@@ -119,7 +123,7 @@ test("buildRecommendationLogPayload keeps ranked score breakdowns", () => {
       shows: [suggestion],
     }),
     {
-      modelVersion: "baseline-v1",
+      modelVersion: "vector-content-v1.2-negative-feedback",
       source: "tmdb",
       page: "ai",
       items: [
@@ -129,6 +133,7 @@ test("buildRecommendationLogPayload keeps ranked score breakdowns", () => {
           title: "Severance",
           score: 93,
           position: 1,
+          modelVersion: "vector-content-v1.2-negative-feedback",
           scoreBreakdown: {
             genreSimilarity: 82,
           },
@@ -152,6 +157,7 @@ test("buildRecommendationFeedbackPayload labels user actions", () => {
       metadata: {
         sourcePage: "ai",
         matchScore: 93,
+        modelVersion: "vector-content-v1.2-negative-feedback",
         recommendationScore: 91,
       },
     },
@@ -194,6 +200,7 @@ test("buildRecommendationFeedbackPayload merges action metadata with show metada
       nextStatus: "watched",
       actionType: "move_to_watched",
       matchScore: 93,
+      modelVersion: "vector-content-v1.2-negative-feedback",
       recommendationScore: 91,
       tmdbRating: 8.947,
       userRating: 8.7,

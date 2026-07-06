@@ -40,6 +40,7 @@ const buildRecommendationLogItem = (item, index) => {
   if (item.score !== undefined && item.score !== null) {
     normalizedItem.score = Number(item.score);
   }
+  if (item.modelVersion) normalizedItem.modelVersion = item.modelVersion;
 
   return normalizedItem;
 };
