@@ -166,6 +166,18 @@ This means:
 This is a useful interview point because it shows the difference between simple
 filtering and actual preference learning.
 
+Older ignored records can be enriched from already-logged interaction metadata:
+
+```bash
+cd cinema-ws
+npm run backfill:ignored-metadata
+npm run backfill:ignored-metadata:apply
+```
+
+The backfill is user-scoped and missing-field-only: it does not copy a normal
+user's private feedback into the public demo collection, and it does not
+overwrite existing ignored-suggestion metadata.
+
 ## Leave-One-Out Evaluation
 
 To evaluate the model with sparse data, the project uses leave-one-out testing.

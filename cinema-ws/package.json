@@ -14,6 +14,8 @@
     "backfill:demo-watching:apply": "node scripts/backfillDemoWatchingStatus.js --apply",
     "backfill:signals": "node scripts/backfillSignalMetadata.js",
     "backfill:signals:apply": "node scripts/backfillSignalMetadata.js --apply",
+    "backfill:ignored-metadata": "node scripts/backfillIgnoredSuggestionMetadata.js",
+    "backfill:ignored-metadata:apply": "node scripts/backfillIgnoredSuggestionMetadata.js --apply",
     "audit:data": "node scripts/auditRecommendationData.js",
     "audit:data:json": "node scripts/auditRecommendationData.js --json",
     "report:baseline": "node scripts/baselineRecommendationReport.js",
