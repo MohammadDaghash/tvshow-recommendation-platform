@@ -6,6 +6,8 @@ import math
 import sys
 from pathlib import Path
 
+from model_diagnostics import build_classification_diagnostics
+
 FEATURE_FIELDS = [
     "vectorSimilarity",
     "tmdbRating",
@@ -176,6 +178,8 @@ def extract_training_examples(
 def _fallback_result(examples, status):
     positive_count = sum(1 for example in examples if example["label"] == 1)
     negative_count = sum(1 for example in examples if example["label"] == 0)
+    labels = [example["label"] for example in examples]
+    neutral_probabilities = [0.5 for _ in examples]
 
     return {
         "status": status,
@@ -189,6 +193,13 @@ def _fallback_result(examples, status):
             "trainingAccuracy": None,
             "rocAuc": None,
         },
+        "diagnostics": build_classification_diagnostics(
+            labels,
+            neutral_probabilities,
+            bootstrap_iterations=200,
+        )
+        if labels
+        else None,
     }
 
 
@@ -240,6 +251,11 @@ def learn_weights_from_examples(examples, random_state=42):
             "trainingAccuracy": round(float(accuracy_score(labels_array, predictions)), 4),
             "rocAuc": round(float(roc_auc_score(labels_array, probabilities)), 4),
         },
+        "diagnostics": build_classification_diagnostics(
+            labels_array.tolist(),
+            probabilities.tolist(),
+            bootstrap_iterations=500,
+        ),
     }
 
 
@@ -288,6 +304,27 @@ def print_text_report(result):
     print(
         f"Training accuracy: {metrics['trainingAccuracy']} | ROC-AUC: {metrics['rocAuc']}"
     )
+    diagnostics = result.get("diagnostics")
+
+    if diagnostics:
+        positive_rate = diagnostics["confidenceIntervals"]["positiveRate"]
+        model_metrics = diagnostics["metrics"]
+        brier_interval = diagnostics["bootstrapIntervals"]["brierScore"]
+
+        print(
+            "Positive label rate Wilson CI: "
+            f"{positive_rate['estimate']} [{positive_rate['lower']}, {positive_rate['upper']}]"
+        )
+        print(
+            "Probability diagnostics: "
+            f"Brier={model_metrics['brierScore']}, "
+            f"logLoss={model_metrics['logLoss']}, "
+            f"ECE={model_metrics['expectedCalibrationError']}"
+        )
+        print(
+            "Brier bootstrap CI: "
+            f"{brier_interval['estimate']} [{brier_interval['lower']}, {brier_interval['upper']}]"
+        )
 
 
 def parse_args(argv):

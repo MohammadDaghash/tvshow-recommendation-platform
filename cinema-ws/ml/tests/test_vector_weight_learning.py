@@ -120,6 +120,9 @@ class VectorWeightLearningTest(unittest.TestCase):
             result["weights"]["vectorSimilarity"],
             result["weights"]["tmdbRating"],
         )
+        self.assertIn("diagnostics", result)
+        self.assertIn("positiveRate", result["diagnostics"]["confidenceIntervals"])
+        self.assertIn("brierScore", result["diagnostics"]["metrics"])
 
     def test_learn_weights_from_examples_requires_two_classes(self):
         result = learn_weights_from_examples(

@@ -26,6 +26,9 @@ This command:
 
 Generated files stay in `.codex-private` and must not be committed.
 
+For the interview-level explanation, see
+`docs/learning/ML_INTERVIEW_DEEP_DIVE.md`.
+
 ## What The Python Model Learns
 
 The script trains a logistic regression model using these inputs:
@@ -49,6 +52,14 @@ ignored = neutral rating or no feedback
 The learned coefficients are normalized into candidate runtime weights, but they
 are only a suggestion.
 
+The script also reports:
+
+- Wilson confidence interval for the positive label rate
+- Brier score
+- log-loss
+- expected calibration error
+- bootstrap confidence interval for Brier score
+
 ## Current Result
 
 The first run trained on a small, imbalanced set:
@@ -58,6 +69,9 @@ samples: 31
 positive: 2
 negative: 29
 warnings: low_sample_count, low_positive_count, class_imbalance
+Brier score: 0.1599
+log-loss: 0.5042
+expected calibration error: 0.3474
 ```
 
 This is useful as a working pipeline, but not enough evidence to replace the
