@@ -4,6 +4,7 @@ import { TasteProfilePanel } from "./TasteProfilePanel";
 export function AppContent({
   activePage,
   allGenres,
+  authToken,
   currentUser,
   filteredShows,
   groupedShows,
@@ -158,6 +159,7 @@ export function AppContent({
           <TrainingHealthPanel />
         ) : isTasteProfilePage ? (
           <TasteProfilePanel
+            authToken={authToken}
             currentUser={currentUser}
             onPreferencesChanged={onTasteProfileChanged}
             openAuthModal={openAuthModal}

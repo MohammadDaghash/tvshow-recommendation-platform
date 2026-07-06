@@ -915,6 +915,7 @@ function App() {
       <AppContent
         activePage={activePage}
         allGenres={allGenres}
+        authToken={authToken}
         currentUser={currentUser}
         filteredShows={filteredShows}
         groupedShows={groupedShows}

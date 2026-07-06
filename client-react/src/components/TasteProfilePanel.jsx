@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 
 import { apiUrl } from "../api";
 import { authHeaders, parseJSONResponse } from "../httpClient";
-import { readStoredSession } from "../sessionStorage";
 import {
+  canEditTasteProfile,
   getKeywordColumnTitle,
   getSignalEffectText,
   getSignalTone,
+  getTasteProfileScopeLabel,
 } from "../tasteProfile";
 
-const fetchTasteProfile = async () => {
-  const token = readStoredSession()?.token;
+const fetchTasteProfile = async (token) => {
   const response = await fetch(apiUrl("/api/interests/profile"), {
     headers: authHeaders(token),
   });
@@ -113,6 +113,7 @@ function SignalList({ emptyText, signals, title }) {
 }
 
 export function TasteProfilePanel({
+  authToken = "",
   currentUser,
   onPreferencesChanged,
   openAuthModal,
@@ -131,7 +132,7 @@ export function TasteProfilePanel({
     setError("");
 
     try {
-      setProfileData(await fetchTasteProfile());
+      setProfileData(await fetchTasteProfile(authToken));
     } catch (loadError) {
       setError(loadError.message);
     } finally {
@@ -142,9 +143,11 @@ export function TasteProfilePanel({
   useEffect(() => {
     let isCurrent = true;
 
-    fetchTasteProfile()
+    fetchTasteProfile(authToken)
       .then((data) => {
-        if (isCurrent) setProfileData(data);
+        if (!isCurrent) return;
+        setProfileData(data);
+        setError("");
       })
       .catch((loadError) => {
         if (isCurrent) setError(loadError.message);
@@ -156,12 +159,10 @@ export function TasteProfilePanel({
     return () => {
       isCurrent = false;
     };
-  }, [currentUser]);
+  }, [authToken, currentUser]);
 
   const mutateKeyword = async (request) => {
-    const token = readStoredSession()?.token;
-
-    if (!token) {
+    if (!currentUser || !authToken) {
       openAuthModal("login", "Sign in to edit your taste profile.");
       return;
     }
@@ -170,7 +171,7 @@ export function TasteProfilePanel({
     setError("");
 
     try {
-      await request(token);
+      await request(authToken);
       await loadProfile();
       await onPreferencesChanged?.();
     } catch (saveError) {
@@ -239,8 +240,15 @@ export function TasteProfilePanel({
   }
 
   const profile = profileData?.profile || emptyProfile;
-  const canEdit = Boolean(profileData?.canEdit);
+  const canEdit = canEditTasteProfile({
+    currentUser,
+    profileCanEdit: profileData?.canEdit,
+  });
   const summary = profile.summary || {};
+  const scopeLabel = getTasteProfileScopeLabel({
+    currentUser,
+    dataScope: profileData?.dataScope,
+  });
 
   return (
     <section className="taste-profile-panel">
@@ -253,9 +261,7 @@ export function TasteProfilePanel({
             keywords are combined into a soft scoring profile.
           </p>
         </div>
-        <span className="taste-profile-scope">
-          {profileData?.dataScope === "private" ? "Private" : "Demo"} profile
-        </span>
+        <span className="taste-profile-scope">{scopeLabel}</span>
       </div>
 
       {error && (
