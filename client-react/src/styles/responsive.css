@@ -188,15 +188,35 @@
   }
 
   .training-health-card,
-  .training-health-detail {
+  .training-health-detail,
+  .taste-profile-card {
     backdrop-filter: blur(10px);
   }
 
   .training-health-header,
   .training-health-grid,
   .training-health-columns,
-  .training-health-row {
+  .training-health-row,
+  .taste-profile-header,
+  .taste-profile-grid,
+  .taste-profile-columns,
+  .signal-row,
+  .feature-weight-row {
     grid-template-columns: 1fr;
+  }
+
+  .taste-profile-panel {
+    padding: 16px;
+  }
+
+  .taste-profile-scope {
+    width: fit-content;
+  }
+
+  .keyword-form,
+  .taste-profile-error {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .carousel-row {

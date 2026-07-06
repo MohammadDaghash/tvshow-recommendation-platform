@@ -3,6 +3,7 @@ const TVShow = require("../models/TVShow");
 const UserShow = require("../models/UserShow");
 const IgnoredSuggestion = require("../models/IgnoredSuggestion");
 const UserIgnoredSuggestion = require("../models/UserIgnoredSuggestion");
+const UserInterest = require("../models/UserInterest");
 const recommendationService = require("../services/recommendation.service");
 const {
   AI_SUGGESTION_CANDIDATE_LIMIT,
@@ -52,6 +53,16 @@ const getUserLibraryShows = async (user) => {
   return userShows.map((userShow) => userShow.tvShow).filter(Boolean);
 };
 
+const getUserInterests = async (user) => {
+  if (!user) return [];
+
+  return UserInterest.find({
+    user: user._id,
+    interestType: "keyword",
+    source: "explicit",
+  });
+};
+
 const collectExcludedValues = (shows, ignoredSuggestions) => {
   return {
     excludedTMDBIds: [
@@ -70,6 +81,7 @@ const getTMDBRecommendations = async (req, res) => {
     const watchedShows = await getProfileWatchedShows(req.user);
     const allExistingShows = await TVShow.find();
     const userLibraryShows = await getUserLibraryShows(req.user);
+    const userInterests = await getUserInterests(req.user);
     const globalIgnoredSuggestions = await IgnoredSuggestion.find();
     const userIgnoredSuggestions = req.user
       ? await UserIgnoredSuggestion.find({ user: req.user._id })
@@ -118,6 +130,7 @@ const getTMDBRecommendations = async (req, res) => {
       excludedTMDBIds,
       excludedTitles,
       preferredOriginalLanguage,
+      userInterests,
       limit: AI_SUGGESTION_CANDIDATE_LIMIT,
     });
 

@@ -19,6 +19,11 @@ export const pageConfig = {
     emptyTitle: "No AI suggestions right now",
     emptyText: "Rate more watched shows or try again after adding more to your list.",
   },
+  taste: {
+    label: "Taste Profile",
+    emptyTitle: "No taste profile yet",
+    emptyText: "Rate shows and add keywords to shape recommendations.",
+  },
   training: {
     label: "Training Health",
     adminOnly: true,

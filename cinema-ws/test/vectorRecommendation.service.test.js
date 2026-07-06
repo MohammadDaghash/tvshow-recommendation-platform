@@ -222,3 +222,35 @@ test("scoreCandidateForUser uses the tuned taste-heavy default weights", () => {
   });
   assert.equal(result.recommendationScore, expectedScore);
 });
+
+test("scoreCandidateForUser includes bounded keyword preferences", () => {
+  const result = scoreCandidateForUser(
+    {
+      title: "Legal Drama With Zombies",
+      overview: "A legal drama about zombies.",
+      genres: ["Drama & Romance"],
+      tmdbRating: 8,
+      popularity: 60,
+      year: 2020,
+      originalLanguage: "en",
+    },
+    Array(VECTOR_DIMENSIONS.length).fill(0),
+    {
+      ...context,
+      keywordPreferences: [
+        {
+          value: "legal drama",
+          sentiment: "like",
+          weight: 1,
+        },
+        {
+          value: "zombies",
+          sentiment: "dislike",
+          weight: 3,
+        },
+      ],
+    },
+  );
+
+  assert.equal(result.scoreBreakdown.keywordPreference, -8);
+});

@@ -924,6 +924,7 @@ function App() {
         leadCarouselConfig={leadCarouselConfig}
         leadCarouselShows={leadCarouselShows}
         logout={logout}
+        onTasteProfileChanged={refreshMLSuggestions}
         openAuthModal={openAuthModal}
         pageConfig={pageConfig}
         pageCounts={pageCounts}
@@ -995,5 +996,4 @@ function App() {
     </div>
   );
 }
-
 export default App;

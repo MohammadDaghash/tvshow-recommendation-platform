@@ -243,6 +243,46 @@ test("buildTMDBRecommendations demotes candidates similar to ignored feedback", 
   assert.ok(recommendations[1].scoreBreakdown.negativeTastePenalty > 0);
 });
 
+test("buildTMDBRecommendations uses explicit keywords as cold-start taste signals", () => {
+  const recommendations = buildTMDBRecommendations({
+    tmdbResults: [
+      {
+        ...tmdbShow(1, 9.8, "en"),
+        name: "Generic High Rated Show",
+        overview: "A broad crowd pleasing comedy.",
+        popularity: 100,
+      },
+      {
+        ...tmdbShow(2, 9.1, "en"),
+        name: "Prestige Legal Drama",
+        genre_ids: [18],
+        overview: "A legal drama about friendship and ambition.",
+        popularity: 70,
+      },
+    ],
+    watchedShows: [],
+    userInterests: [
+      {
+        interestType: "keyword",
+        value: "legal drama",
+        sentiment: "like",
+        weight: 1,
+      },
+    ],
+    excludedTMDBIds: [],
+    excludedTitles: [],
+    preferredOriginalLanguage: "en",
+    limit: 2,
+  });
+
+  assert.equal(recommendations[0].tmdbId, 2);
+  assert.equal(
+    recommendations[0].recommendationModel,
+    "vector-content-v1.3-keywords",
+  );
+  assert.equal(recommendations[0].scoreBreakdown.keywordPreference, 4);
+});
+
 test("getPreferredOriginalLanguage defaults to English and learns from rated history", () => {
   assert.equal(getPreferredOriginalLanguage([]), "en");
   assert.equal(

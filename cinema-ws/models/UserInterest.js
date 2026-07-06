@@ -11,7 +11,7 @@ const userInterestSchema = new mongoose.Schema(
 
     interestType: {
       type: String,
-      enum: ["genre", "mood", "theme", "actor", "language", "era"],
+      enum: ["genre", "mood", "theme", "actor", "language", "era", "keyword"],
       required: true,
       index: true,
     },
@@ -27,6 +27,13 @@ const userInterestSchema = new mongoose.Schema(
       default: 1,
       min: 0,
       max: 10,
+    },
+
+    sentiment: {
+      type: String,
+      enum: ["like", "dislike"],
+      default: "like",
+      index: true,
     },
 
     source: {

@@ -11,6 +11,10 @@ const CANONICAL_GENRES = [
   "Other",
 ];
 
+const {
+  getKeywordPreferenceScore,
+} = require("./userInterest.service");
+
 const VECTOR_DIMENSIONS = [
   ...CANONICAL_GENRES,
   "tmdbRating",
@@ -236,16 +240,21 @@ function scoreCandidateForUser(
     getLanguagePreference(candidateShow, context.preferredOriginalLanguage) * 100,
     1,
   );
+  const keywordPreference = getKeywordPreferenceScore(
+    candidateShow,
+    context.keywordPreferences || [],
+  ).value;
   const scoreParts = {
     vectorSimilarity,
     tmdbRating,
     popularity,
     yearSimilarity,
     languagePreference,
+    keywordPreference,
   };
   const finalScore = Object.entries(DEFAULT_SCORE_WEIGHTS).reduce(
     (sum, [field, weight]) => sum + scoreParts[field] * weight,
-    0,
+    keywordPreference,
   ) - negativeTastePenalty * DEFAULT_NEGATIVE_TASTE_PENALTY_WEIGHT;
 
   return {
@@ -260,6 +269,7 @@ function scoreCandidateForUser(
       popularity,
       yearSimilarity,
       languagePreference,
+      keywordPreference,
     },
   };
 }

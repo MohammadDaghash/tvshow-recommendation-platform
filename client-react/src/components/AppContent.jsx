@@ -1,4 +1,5 @@
 import { TrainingHealthPanel } from "./TrainingHealthPanel";
+import { TasteProfilePanel } from "./TasteProfilePanel";
 
 export function AppContent({
   activePage,
@@ -12,6 +13,7 @@ export function AppContent({
   leadCarouselConfig,
   leadCarouselShows,
   logout,
+  onTasteProfileChanged,
   openAuthModal,
   pageConfig,
   pageCounts,
@@ -28,6 +30,8 @@ export function AppContent({
   watchingShows,
 }) {
   const isTrainingPage = activePage === "training";
+  const isTasteProfilePage = activePage === "taste";
+  const isUtilityPage = isTrainingPage || isTasteProfilePage;
   const visiblePageEntries = Object.entries(pageConfig).filter(
     ([, config]) => !config.adminOnly || isAdmin,
   );
@@ -125,7 +129,7 @@ export function AppContent({
             </button>
           </div>
 
-          {!isTrainingPage && (
+          {!isUtilityPage && (
             <div className="filters">
               <input
                 type="text"
@@ -152,6 +156,12 @@ export function AppContent({
 
         {isTrainingPage ? (
           <TrainingHealthPanel />
+        ) : isTasteProfilePage ? (
+          <TasteProfilePanel
+            currentUser={currentUser}
+            onPreferencesChanged={onTasteProfileChanged}
+            openAuthModal={openAuthModal}
+          />
         ) : (
         <section className="show-section">
           <h2 className="section-title">{pageConfig[activePage].label}</h2>

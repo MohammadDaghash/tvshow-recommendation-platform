@@ -530,3 +530,213 @@
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.16);
 }
+
+.taste-profile-panel {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid rgba(150, 180, 230, 0.22);
+  border-radius: var(--cinema-radius);
+  background:
+    radial-gradient(circle at 15% 0, rgba(234, 211, 138, 0.12), transparent 32%),
+    radial-gradient(circle at 85% 12%, rgba(120, 226, 194, 0.1), transparent 30%),
+    linear-gradient(145deg, rgba(20, 28, 44, 0.94), rgba(8, 11, 20, 0.97));
+  box-shadow: var(--cinema-shadow-soft), 0 0 42px rgba(143, 184, 255, 0.08);
+  animation: fadeIn 0.35s ease both;
+}
+
+.taste-profile-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.taste-profile-header h2 {
+  margin: 4px 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.taste-profile-muted {
+  margin: 0;
+  color: var(--cinema-muted);
+  line-height: 1.5;
+}
+
+.taste-profile-scope {
+  padding: 10px 14px;
+  border: 1px solid rgba(234, 211, 138, 0.34);
+  border-radius: 999px;
+  background: rgba(234, 211, 138, 0.12);
+  color: var(--cinema-gold);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.taste-profile-error {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  border-radius: 12px;
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+}
+
+.taste-profile-grid,
+.taste-profile-columns {
+  display: grid;
+  gap: 16px;
+}
+
+.taste-profile-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.taste-profile-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.taste-profile-card {
+  position: relative;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.055);
+  box-shadow:
+    var(--cinema-shadow-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.taste-profile-card > span,
+.feature-weight-row small,
+.signal-row small {
+  color: var(--cinema-muted);
+}
+
+.taste-profile-card > strong {
+  display: block;
+  margin-top: 6px;
+  font-size: clamp(1.45rem, 3vw, 2.15rem);
+}
+
+.taste-profile-card h3 {
+  margin: 0 0 12px;
+}
+
+.taste-profile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.taste-profile-card-header h3 {
+  margin: 0;
+}
+
+.taste-profile-card-header span {
+  display: inline-grid;
+  min-width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cinema-soft);
+  font-weight: 800;
+}
+
+.signal-list,
+.keyword-chip-list,
+.feature-weight-table {
+  display: grid;
+  gap: 10px;
+}
+
+.signal-row,
+.feature-weight-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.signal-row {
+  grid-template-columns: minmax(0, 1fr) auto minmax(140px, 0.8fr);
+}
+
+.feature-weight-row {
+  grid-template-columns: minmax(0, 1fr) auto minmax(120px, 0.65fr) minmax(160px, 1fr);
+}
+
+.signal-positive {
+  color: var(--cinema-teal);
+}
+
+.signal-negative {
+  color: #fca5a5;
+}
+
+.signal-neutral {
+  color: var(--cinema-muted);
+}
+
+.keyword-chip-list {
+  grid-template-columns: repeat(auto-fit, minmax(120px, max-content));
+  min-height: 44px;
+}
+
+.keyword-chip {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(120, 226, 194, 0.24);
+  border-radius: 999px;
+  background: rgba(120, 226, 194, 0.1);
+  color: var(--cinema-soft);
+  font-weight: 700;
+}
+
+.keyword-chip button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--cinema-soft);
+  cursor: pointer;
+}
+
+.keyword-form {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.keyword-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(143, 184, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(5, 8, 14, 0.42);
+  color: var(--cinema-text);
+  outline: none;
+}

@@ -4,6 +4,7 @@ const {
   cosineSimilarity,
   scoreCandidateForUser,
 } = require("./vectorRecommendation.service");
+const { getKeywordPreferences } = require("./userInterest.service");
 
 const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 const AI_SUGGESTION_CANDIDATE_LIMIT = 80;
@@ -210,6 +211,7 @@ const getShowYear = (show) => {
 
 const buildVectorContext = ({
   candidateShows = [],
+  keywordPreferences = [],
   preferredOriginalLanguage = "en",
   watchedShows = [],
   negativeFeedbackShows = [],
@@ -226,6 +228,7 @@ const buildVectorContext = ({
     maxPopularity: Math.max(...popularities, 100),
     minYear: years.length ? Math.min(...years) : 1990,
     maxYear: years.length ? Math.max(...years) : new Date().getFullYear(),
+    keywordPreferences,
     preferredOriginalLanguage,
   };
 };
@@ -293,6 +296,7 @@ const buildTMDBRecommendations = ({
   excludedTMDBIds = [],
   excludedTitles = [],
   preferredOriginalLanguage = "en",
+  userInterests = [],
   limit = 20,
 }) => {
   const excludedTMDBIdSet = new Set(excludedTMDBIds.filter(Boolean));
@@ -300,10 +304,15 @@ const buildTMDBRecommendations = ({
     excludedTitles.map(normalizeTitle).filter(Boolean),
   );
   const isColdStart = watchedShows.length === 0;
+  const keywordPreferences = getKeywordPreferences(userInterests);
   const usesColdStartRanking =
-    isColdStart && negativeFeedbackShows.length === 0;
+    isColdStart &&
+    negativeFeedbackShows.length === 0 &&
+    keywordPreferences.length === 0;
   const modelVersion =
-    negativeFeedbackShows.length > 0
+    keywordPreferences.length > 0
+      ? "vector-content-v1.3-keywords"
+      : negativeFeedbackShows.length > 0
       ? "vector-content-v1.2-negative-feedback"
       : "vector-content-v1.1";
   const profileShows = [...watchedShows, ...negativeFeedbackShows];
@@ -318,6 +327,7 @@ const buildTMDBRecommendations = ({
   const vectorContext = buildVectorContext({
     candidateShows,
     negativeFeedbackShows,
+    keywordPreferences,
     preferredOriginalLanguage,
     watchedShows,
   });
