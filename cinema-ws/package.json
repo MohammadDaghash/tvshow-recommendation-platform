@@ -24,7 +24,9 @@
     "analyze:training-data": "node scripts/analyzeTrainingData.js",
     "analyze:training-data:json": "node scripts/analyzeTrainingData.js --json",
     "evaluate:recommendations": "node scripts/evaluateRecommendations.js",
-    "evaluate:recommendations:json": "node scripts/evaluateRecommendations.js --json"
+    "evaluate:recommendations:json": "node scripts/evaluateRecommendations.js --json",
+    "experiment:vector": "node scripts/runVectorExperiment.js",
+    "experiment:vector:json": "node scripts/runVectorExperiment.js --json"
   },
   "keywords": [],
   "author": "",

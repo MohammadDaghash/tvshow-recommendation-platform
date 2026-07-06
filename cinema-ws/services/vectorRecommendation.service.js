@@ -19,6 +19,14 @@ const VECTOR_DIMENSIONS = [
   "languagePreference",
 ];
 
+const DEFAULT_SCORE_WEIGHTS = {
+  vectorSimilarity: 0.75,
+  tmdbRating: 0.1,
+  popularity: 0.05,
+  yearSimilarity: 0.05,
+  languagePreference: 0.05,
+};
+
 const round = (value, places = 3) => Number(value.toFixed(places));
 
 const clamp = (value, min = 0, max = 1) => {
@@ -220,12 +228,17 @@ function scoreCandidateForUser(
     getLanguagePreference(candidateShow, context.preferredOriginalLanguage) * 100,
     1,
   );
-  const finalScore =
-    vectorSimilarity * 0.6 +
-    tmdbRating * 0.2 +
-    popularity * 0.1 +
-    yearSimilarity * 0.05 +
-    languagePreference * 0.05;
+  const scoreParts = {
+    vectorSimilarity,
+    tmdbRating,
+    popularity,
+    yearSimilarity,
+    languagePreference,
+  };
+  const finalScore = Object.entries(DEFAULT_SCORE_WEIGHTS).reduce(
+    (sum, [field, weight]) => sum + scoreParts[field] * weight,
+    0,
+  );
 
   return {
     recommendationScore: Math.round(finalScore),
@@ -243,6 +256,7 @@ function scoreCandidateForUser(
 }
 
 module.exports = {
+  DEFAULT_SCORE_WEIGHTS,
   VECTOR_DIMENSIONS,
   buildShowFeatureVector,
   buildUserTasteVector,

@@ -50,7 +50,7 @@ test("buildTMDBRecommendations filters excluded candidates before limiting to 20
 
   assert.equal(recommendations.length, 20);
   assert.deepEqual(
-    recommendations.map((show) => show.tmdbId),
+    [...recommendations.map((show) => show.tmdbId)].sort((a, b) => a - b),
     Array.from({ length: 20 }, (_, index) => index + 4),
   );
 });
@@ -158,7 +158,7 @@ test("buildTMDBRecommendations exposes vector similarity math for personalized r
   });
 
   assert.equal(recommendations[0].tmdbId, 1);
-  assert.equal(recommendations[0].recommendationModel, "vector-content-v1");
+  assert.equal(recommendations[0].recommendationModel, "vector-content-v1.1");
   assert.ok(recommendations[0].scoreBreakdown.vectorSimilarity > 90);
   assert.ok(
     recommendations[0].scoreBreakdown.vectorSimilarity >

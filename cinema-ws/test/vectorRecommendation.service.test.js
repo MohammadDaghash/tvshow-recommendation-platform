@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  DEFAULT_SCORE_WEIGHTS,
   VECTOR_DIMENSIONS,
   buildShowFeatureVector,
   buildUserTasteVector,
@@ -126,4 +127,50 @@ test("scoreCandidateForUser ranks a lower-rated matching show above an unrelated
     matchingCandidate.scoreBreakdown.vectorSimilarity >
       unrelatedCandidate.scoreBreakdown.vectorSimilarity,
   );
+});
+
+test("scoreCandidateForUser uses the tuned taste-heavy default weights", () => {
+  const tasteVector = buildUserTasteVector(
+    [
+      {
+        title: "Breaking Bad",
+        genres: ["Drama & Romance", "Mystery & Thriller"],
+        userRating: 10,
+        tmdbRating: 9,
+        popularity: 90,
+        year: 2008,
+        originalLanguage: "en",
+      },
+    ],
+    context,
+  );
+  const result = scoreCandidateForUser(
+    {
+      title: "The Wire",
+      genres: ["Drama & Romance", "Mystery & Thriller"],
+      tmdbRating: 8.5,
+      popularity: 60,
+      year: 2002,
+      originalLanguage: "en",
+    },
+    tasteVector,
+    context,
+  );
+  const breakdown = result.scoreBreakdown;
+  const expectedScore = Math.round(
+    breakdown.vectorSimilarity * DEFAULT_SCORE_WEIGHTS.vectorSimilarity +
+      breakdown.tmdbRating * DEFAULT_SCORE_WEIGHTS.tmdbRating +
+      breakdown.popularity * DEFAULT_SCORE_WEIGHTS.popularity +
+      breakdown.yearSimilarity * DEFAULT_SCORE_WEIGHTS.yearSimilarity +
+      breakdown.languagePreference * DEFAULT_SCORE_WEIGHTS.languagePreference,
+  );
+
+  assert.deepEqual(DEFAULT_SCORE_WEIGHTS, {
+    vectorSimilarity: 0.75,
+    tmdbRating: 0.1,
+    popularity: 0.05,
+    yearSimilarity: 0.05,
+    languagePreference: 0.05,
+  });
+  assert.equal(result.recommendationScore, expectedScore);
 });

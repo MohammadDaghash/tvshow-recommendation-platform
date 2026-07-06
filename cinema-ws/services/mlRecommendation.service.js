@@ -273,60 +273,60 @@ const buildTMDBRecommendations = ({
       userTasteVector,
       vectorContext,
     );
-      const tmdbScore = Math.min(
-        100,
-        Math.round((candidateShow.tmdbRating || 0) * 10),
-      );
-      const popularityScore = Math.min(
-        100,
-        Math.round((candidateShow.popularity || 0) / 2),
-      );
-      const yearSimilarity = 80;
-      const languagePreference = getLanguagePreferenceScore(
-        candidateShow,
-        preferredOriginalLanguage,
-      );
+    const tmdbScore = Math.min(
+      100,
+      Math.round((candidateShow.tmdbRating || 0) * 10),
+    );
+    const popularityScore = Math.min(
+      100,
+      Math.round((candidateShow.popularity || 0) / 2),
+    );
+    const yearSimilarity = 80;
+    const languagePreference = getLanguagePreferenceScore(
+      candidateShow,
+      preferredOriginalLanguage,
+    );
 
-      const recommendationScore = isColdStart
-        ? Math.round(tmdbScore * 0.75 + languagePreference * 0.25)
-        : vectorScores.recommendationScore;
-      const scoreBreakdown = isColdStart
-        ? {
-            vectorSimilarity: 0,
-            genreSimilarity: 0,
-            categoryPreference: 0,
-            tmdbRating: tmdbScore,
-            popularity: popularityScore,
-            yearSimilarity,
-            languagePreference,
-          }
-        : vectorScores.scoreBreakdown;
-      const candidateVector = buildShowFeatureVector(candidateShow, vectorContext);
+    const recommendationScore = isColdStart
+      ? Math.round(tmdbScore * 0.75 + languagePreference * 0.25)
+      : vectorScores.recommendationScore;
+    const scoreBreakdown = isColdStart
+      ? {
+          vectorSimilarity: 0,
+          genreSimilarity: 0,
+          categoryPreference: 0,
+          tmdbRating: tmdbScore,
+          popularity: popularityScore,
+          yearSimilarity,
+          languagePreference,
+        }
+      : vectorScores.scoreBreakdown;
+    const candidateVector = buildShowFeatureVector(candidateShow, vectorContext);
 
-      return {
-        ...candidateShow,
-        recommendationScore,
-        matchScore: recommendationScore,
-        recommendationModel: isColdStart
-          ? "tmdb-cold-start-v1"
-          : "vector-content-v1",
-        similarity: vectorScores.similarity,
-        isAISuggestion: true,
-        scoreBreakdown,
-        similarWatchedShows: watchedShows
-          .map((watchedShow) => {
-            const watchedVector = buildShowFeatureVector(
-              watchedShow,
-              vectorContext,
-            );
+    return {
+      ...candidateShow,
+      recommendationScore,
+      matchScore: recommendationScore,
+      recommendationModel: isColdStart
+        ? "tmdb-cold-start-v1"
+        : "vector-content-v1.1",
+      similarity: vectorScores.similarity,
+      isAISuggestion: true,
+      scoreBreakdown,
+      similarWatchedShows: watchedShows
+        .map((watchedShow) => {
+          const watchedVector = buildShowFeatureVector(
+            watchedShow,
+            vectorContext,
+          );
 
-            return {
-              title: watchedShow.title,
-              similarity: cosineSimilarity(candidateVector, watchedVector),
-            };
-          })
-          .sort((a, b) => b.similarity - a.similarity)
-          .slice(0, 3),
+          return {
+            title: watchedShow.title,
+            similarity: cosineSimilarity(candidateVector, watchedVector),
+          };
+        })
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 3),
     };
   });
 
