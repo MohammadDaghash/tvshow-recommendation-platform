@@ -6,6 +6,7 @@ const {
   AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
+  buildNegativeFeedbackShows,
   getFavoriteGenreIds,
   getPreferredOriginalLanguage,
   resolveSuggestionExcludedShows,
@@ -164,6 +165,82 @@ test("buildTMDBRecommendations exposes vector similarity math for personalized r
     recommendations[0].scoreBreakdown.vectorSimilarity >
       recommendations[1].scoreBreakdown.vectorSimilarity,
   );
+});
+
+test("buildNegativeFeedbackShows turns ignored metadata into negative taste rows", () => {
+  const negativeRows = buildNegativeFeedbackShows([
+    {
+      title: "Rejected Sitcom",
+      tmdbId: 22,
+      metadata: {
+        genres: ["Comedy"],
+        tmdbRating: 8.6,
+        popularity: 72,
+        year: 2020,
+        originalLanguage: "en",
+        originCountry: ["US"],
+        voteCount: 1200,
+      },
+    },
+  ]);
+
+  assert.deepEqual(negativeRows, [
+    {
+      title: "Rejected Sitcom",
+      tmdbId: 22,
+      genres: ["Comedy"],
+      tmdbRating: 8.6,
+      popularity: 72,
+      year: 2020,
+      originalLanguage: "en",
+      originCountry: ["US"],
+      voteCount: 1200,
+      userRating: 2,
+      feedbackType: "not_interested",
+    },
+  ]);
+});
+
+test("buildTMDBRecommendations demotes candidates similar to ignored feedback", () => {
+  const recommendations = buildTMDBRecommendations({
+    tmdbResults: [
+      {
+        ...tmdbShow(1, 9.9, "en"),
+        name: "Similar Rejected Sitcom",
+        genre_ids: [35],
+        popularity: 100,
+      },
+      {
+        ...tmdbShow(2, 8.8, "en"),
+        name: "Different Prestige Drama",
+        genre_ids: [18],
+        popularity: 80,
+      },
+    ],
+    watchedShows: [],
+    negativeFeedbackShows: [
+      {
+        title: "Rejected Sitcom",
+        genres: ["Comedy"],
+        userRating: 2,
+        tmdbRating: 8.5,
+        popularity: 90,
+        year: 2024,
+        originalLanguage: "en",
+      },
+    ],
+    excludedTMDBIds: [],
+    excludedTitles: [],
+    preferredOriginalLanguage: "en",
+    limit: 2,
+  });
+
+  assert.equal(recommendations[0].tmdbId, 2);
+  assert.equal(
+    recommendations[0].recommendationModel,
+    "vector-content-v1.2-negative-feedback",
+  );
+  assert.ok(recommendations[1].scoreBreakdown.negativeTastePenalty > 0);
 });
 
 test("getPreferredOriginalLanguage defaults to English and learns from rated history", () => {

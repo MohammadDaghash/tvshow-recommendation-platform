@@ -58,6 +58,15 @@ const normalizeOriginalLanguage = (language) => {
     .trim();
 };
 
+const firstDefined = (...values) =>
+  values.find((value) => value !== undefined && value !== null && value !== "");
+
+const toOptionalNumber = (value) => {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : undefined;
+};
+
 const getShowOriginalLanguage = (show = {}) => {
   return normalizeOriginalLanguage(show.originalLanguage || show.original_language);
 };
@@ -203,11 +212,13 @@ const buildVectorContext = ({
   candidateShows = [],
   preferredOriginalLanguage = "en",
   watchedShows = [],
+  negativeFeedbackShows = [],
 }) => {
-  const popularities = [...candidateShows, ...watchedShows]
+  const profileShows = [...watchedShows, ...negativeFeedbackShows];
+  const popularities = [...candidateShows, ...profileShows]
     .map((show) => Number(show.popularity || 0))
     .filter((popularity) => Number.isFinite(popularity));
-  const years = [...candidateShows, ...watchedShows]
+  const years = [...candidateShows, ...profileShows]
     .map(getShowYear)
     .filter((year) => Number.isFinite(year));
 
@@ -239,9 +250,46 @@ const buildCandidateShow = (show) => {
   };
 };
 
+const buildNegativeFeedbackShows = (ignoredSuggestions = []) => {
+  return ignoredSuggestions
+    .map((suggestion) => {
+      const metadata = suggestion.metadata || {};
+      const genres = firstDefined(suggestion.genres, metadata.genres, []);
+
+      return {
+        title: firstDefined(suggestion.title, metadata.title),
+        tmdbId: toOptionalNumber(firstDefined(suggestion.tmdbId, metadata.tmdbId)),
+        genres: Array.isArray(genres) ? genres.filter(Boolean) : [],
+        tmdbRating: toOptionalNumber(
+          firstDefined(suggestion.tmdbRating, metadata.tmdbRating),
+        ),
+        popularity: toOptionalNumber(
+          firstDefined(suggestion.popularity, metadata.popularity),
+        ),
+        year: toOptionalNumber(firstDefined(suggestion.year, metadata.year)),
+        originalLanguage: firstDefined(
+          suggestion.originalLanguage,
+          metadata.originalLanguage,
+        ),
+        originCountry: firstDefined(
+          suggestion.originCountry,
+          metadata.originCountry,
+          [],
+        ),
+        voteCount: toOptionalNumber(
+          firstDefined(suggestion.voteCount, metadata.voteCount),
+        ),
+        userRating: 2,
+        feedbackType: "not_interested",
+      };
+    })
+    .filter((show) => show.title || show.tmdbId);
+};
+
 const buildTMDBRecommendations = ({
   tmdbResults = [],
   watchedShows = [],
+  negativeFeedbackShows = [],
   excludedTMDBIds = [],
   excludedTitles = [],
   preferredOriginalLanguage = "en",
@@ -252,6 +300,13 @@ const buildTMDBRecommendations = ({
     excludedTitles.map(normalizeTitle).filter(Boolean),
   );
   const isColdStart = watchedShows.length === 0;
+  const usesColdStartRanking =
+    isColdStart && negativeFeedbackShows.length === 0;
+  const modelVersion =
+    negativeFeedbackShows.length > 0
+      ? "vector-content-v1.2-negative-feedback"
+      : "vector-content-v1.1";
+  const profileShows = [...watchedShows, ...negativeFeedbackShows];
   const candidateShows = tmdbResults
     .filter((show) => {
       return (
@@ -262,10 +317,11 @@ const buildTMDBRecommendations = ({
     .map(buildCandidateShow);
   const vectorContext = buildVectorContext({
     candidateShows,
+    negativeFeedbackShows,
     preferredOriginalLanguage,
     watchedShows,
   });
-  const userTasteVector = buildUserTasteVector(watchedShows, vectorContext);
+  const userTasteVector = buildUserTasteVector(profileShows, vectorContext);
 
   const recommendations = candidateShows.map((candidateShow) => {
     const vectorScores = scoreCandidateForUser(
@@ -287,14 +343,15 @@ const buildTMDBRecommendations = ({
       preferredOriginalLanguage,
     );
 
-    const recommendationScore = isColdStart
+    const recommendationScore = usesColdStartRanking
       ? Math.round(tmdbScore * 0.75 + languagePreference * 0.25)
       : vectorScores.recommendationScore;
-    const scoreBreakdown = isColdStart
+    const scoreBreakdown = usesColdStartRanking
       ? {
           vectorSimilarity: 0,
           genreSimilarity: 0,
           categoryPreference: 0,
+          negativeTastePenalty: 0,
           tmdbRating: tmdbScore,
           popularity: popularityScore,
           yearSimilarity,
@@ -307,9 +364,9 @@ const buildTMDBRecommendations = ({
       ...candidateShow,
       recommendationScore,
       matchScore: recommendationScore,
-      recommendationModel: isColdStart
+      recommendationModel: usesColdStartRanking
         ? "tmdb-cold-start-v1"
-        : "vector-content-v1.1",
+        : modelVersion,
       similarity: vectorScores.similarity,
       isAISuggestion: true,
       scoreBreakdown,
@@ -340,6 +397,7 @@ const buildTMDBRecommendations = ({
 module.exports = {
   AI_SUGGESTION_CANDIDATE_LIMIT,
   AI_SUGGESTION_FETCH_PAGE_COUNT,
+  buildNegativeFeedbackShows,
   buildTMDBSuggestionRequest,
   buildTMDBRecommendations,
   getPreferredOriginalLanguage,

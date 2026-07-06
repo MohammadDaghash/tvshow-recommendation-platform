@@ -130,6 +130,42 @@ This is `vector-content-v1.1`.
 The key engineering choice is that the score is decomposable. Every card can
 explain why it was recommended.
 
+## Negative Feedback Learning
+
+The next live model version is `vector-content-v1.2-negative-feedback`.
+
+It keeps the same positive taste vector, but adds a penalty when a candidate is
+similar to rejected taste:
+
+```text
+positive_profile = weighted average of liked/rated shows
+negative_profile = weighted average of rejected or low-rated show features
+adjusted_profile = positive_profile - lambda * negative_profile
+```
+
+In the implementation, low ratings and Not Interested actions create negative
+genre evidence. The final score subtracts a negative-similarity penalty:
+
+```text
+negativeTastePenalty = max(0, -cosine(adjusted_profile, candidate_vector))
+
+adjusted_score =
+  base_content_score
+  - penalty_weight * negativeTastePenalty
+```
+
+This means:
+
+- rejecting one exact show still hides that exact show
+- rejecting a comedy show can also lower similar comedy recommendations
+- unrelated high-quality shows are not punished just because the rejected show
+  had a high TMDB rating
+- the model version changes when negative feedback affects ranking, so future
+  evaluation can compare `v1.1` and `v1.2` fairly
+
+This is a useful interview point because it shows the difference between simple
+filtering and actual preference learning.
+
 ## Leave-One-Out Evaluation
 
 To evaluate the model with sparse data, the project uses leave-one-out testing.
@@ -409,18 +445,18 @@ If asked "How would you improve it next?", answer:
 
 ## Next ML Upgrade
 
-The strongest next technical step is negative-feedback learning:
+The strongest next technical step is evaluation-driven deployment:
 
-- Not Interested should not only remove that exact show.
-- It should reduce the score of similar future shows.
-- Low ratings should contribute negative taste weights.
-- The effect should decay as the user adds more positive evidence.
+- log model-version outcomes for `vector-content-v1.2-negative-feedback`
+- compare it against `vector-content-v1.1`
+- measure hit@20, MRR, nDCG, accept rate, ignore rate, Brier score, and
+  calibration
+- use bootstrap intervals before deciding whether the new model is genuinely
+  better
 
-This can be implemented as:
+The interview phrasing:
 
 ```text
-adjusted_taste_vector =
-  positive_profile_vector - lambda * negative_profile_vector
+I do not just change the model and assume it is better. I version the model,
+log outcomes, and compare metrics with uncertainty.
 ```
-
-Then tune `lambda` offline with leave-one-out and feedback logs.

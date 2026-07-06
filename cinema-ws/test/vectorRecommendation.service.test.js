@@ -129,6 +129,54 @@ test("scoreCandidateForUser ranks a lower-rated matching show above an unrelated
   );
 });
 
+test("scoreCandidateForUser penalizes candidates similar to rejected taste", () => {
+  const tasteVector = buildUserTasteVector(
+    [
+      {
+        title: "Rejected Sitcom",
+        genres: ["Comedy"],
+        userRating: 2,
+        tmdbRating: 9,
+        popularity: 80,
+        year: 2018,
+        originalLanguage: "en",
+      },
+    ],
+    context,
+  );
+  const similarRejectedCandidate = scoreCandidateForUser(
+    {
+      title: "Another Sitcom",
+      genres: ["Comedy"],
+      tmdbRating: 9,
+      popularity: 80,
+      year: 2018,
+      originalLanguage: "en",
+    },
+    tasteVector,
+    context,
+  );
+  const unrelatedCandidate = scoreCandidateForUser(
+    {
+      title: "Prestige Drama",
+      genres: ["Drama & Romance"],
+      tmdbRating: 9,
+      popularity: 80,
+      year: 2018,
+      originalLanguage: "en",
+    },
+    tasteVector,
+    context,
+  );
+
+  assert.ok(similarRejectedCandidate.scoreBreakdown.negativeTastePenalty > 0);
+  assert.equal(unrelatedCandidate.scoreBreakdown.negativeTastePenalty, 0);
+  assert.ok(
+    similarRejectedCandidate.recommendationScore <
+      unrelatedCandidate.recommendationScore,
+  );
+});
+
 test("scoreCandidateForUser uses the tuned taste-heavy default weights", () => {
   const tasteVector = buildUserTasteVector(
     [

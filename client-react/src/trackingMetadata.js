@@ -18,6 +18,8 @@ export const buildShowTrackingMetadata = (show = {}, metadata = {}) =>
     matchScore: show.matchScore,
     recommendationScore: show.recommendationScore,
     tmdbRating: show.tmdbRating,
+    popularity: show.popularity,
+    year: show.year,
     userRating: show.userRating,
     status: show.status,
     genres: show.genres,

@@ -26,6 +26,7 @@ const DEFAULT_SCORE_WEIGHTS = {
   yearSimilarity: 0.05,
   languagePreference: 0.05,
 };
+const DEFAULT_NEGATIVE_TASTE_PENALTY_WEIGHT = 0.35;
 
 const round = (value, places = 3) => Number(value.toFixed(places));
 
@@ -179,6 +180,12 @@ const getRatingWeight = (rating) => {
   return clamp((number - 5) / 5, -1, 1);
 };
 
+const getTasteContributionValue = (value, index, weight) => {
+  if (weight >= 0) return value * weight;
+
+  return index < CANONICAL_GENRES.length ? value * weight : 0;
+};
+
 function buildUserTasteVector(profileShows = [], context = {}) {
   const weightedVector = Array(VECTOR_DIMENSIONS.length).fill(0);
   let totalAbsoluteWeight = 0;
@@ -191,7 +198,7 @@ function buildUserTasteVector(profileShows = [], context = {}) {
     const showVector = buildShowFeatureVector(show, context);
 
     showVector.forEach((value, index) => {
-      weightedVector[index] += value * weight;
+      weightedVector[index] += getTasteContributionValue(value, index, weight);
     });
     totalAbsoluteWeight += Math.abs(weight);
   }
@@ -215,6 +222,7 @@ function scoreCandidateForUser(
   const candidateVector = buildShowFeatureVector(candidateShow, context);
   const rawSimilarity = cosineSimilarity(tasteVector, candidateVector);
   const vectorSimilarity = round(Math.max(0, rawSimilarity) * 100, 1);
+  const negativeTastePenalty = round(Math.max(0, -rawSimilarity) * 100, 1);
   const tmdbRating = round(normalizeRating(candidateShow.tmdbRating) * 100, 1);
   const popularity = round(
     normalizePopularity(candidateShow.popularity, context.maxPopularity) * 100,
@@ -238,15 +246,16 @@ function scoreCandidateForUser(
   const finalScore = Object.entries(DEFAULT_SCORE_WEIGHTS).reduce(
     (sum, [field, weight]) => sum + scoreParts[field] * weight,
     0,
-  );
+  ) - negativeTastePenalty * DEFAULT_NEGATIVE_TASTE_PENALTY_WEIGHT;
 
   return {
-    recommendationScore: Math.round(finalScore),
+    recommendationScore: Math.round(clamp(finalScore, 0, 100)),
     similarity: round(rawSimilarity),
     scoreBreakdown: {
       vectorSimilarity,
       genreSimilarity: vectorSimilarity,
       categoryPreference: vectorSimilarity,
+      negativeTastePenalty,
       tmdbRating,
       popularity,
       yearSimilarity,
@@ -257,6 +266,7 @@ function scoreCandidateForUser(
 
 module.exports = {
   DEFAULT_SCORE_WEIGHTS,
+  DEFAULT_NEGATIVE_TASTE_PENALTY_WEIGHT,
   VECTOR_DIMENSIONS,
   buildShowFeatureVector,
   buildUserTasteVector,

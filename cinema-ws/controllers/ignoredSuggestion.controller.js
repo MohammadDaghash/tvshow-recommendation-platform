@@ -6,6 +6,9 @@ const {
   shouldRecordTasteSignals,
   withRecommendationSignalContext,
 } = require("../services/recommendationSignalContext.service");
+const {
+  buildIgnoredSuggestionUpdate,
+} = require("../services/ignoredSuggestion.service");
 
 const recordIgnoredSuggestion = (req, payload) => {
   if (!shouldRecordTasteSignals(req.user)) {
@@ -53,11 +56,12 @@ const ignoreSuggestion = async (req, res) => {
         user: req.user._id,
         tmdbId,
       },
-      {
-        user: req.user._id,
+      buildIgnoredSuggestionUpdate({
+        userId: req.user._id,
         tmdbId,
         title,
-      },
+        metadata,
+      }),
       {
         returnDocument: "after",
         upsert: true,

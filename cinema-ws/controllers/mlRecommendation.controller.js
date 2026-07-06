@@ -9,6 +9,7 @@ const {
   AI_SUGGESTION_FETCH_PAGE_COUNT,
   buildTMDBRecommendations,
   buildTMDBSuggestionRequest,
+  buildNegativeFeedbackShows,
   getFavoriteGenreIds,
   getPreferredOriginalLanguage,
   resolveSuggestionExcludedShows,
@@ -87,6 +88,7 @@ const getTMDBRecommendations = async (req, res) => {
       excludedShows,
       ignoredSuggestions,
     );
+    const negativeFeedbackShows = buildNegativeFeedbackShows(ignoredSuggestions);
     const favoriteGenreIds = getFavoriteGenreIds(watchedShows);
     const preferredOriginalLanguage = getPreferredOriginalLanguage(watchedShows);
 
@@ -112,6 +114,7 @@ const getTMDBRecommendations = async (req, res) => {
     const recommendations = buildTMDBRecommendations({
       tmdbResults,
       watchedShows,
+      negativeFeedbackShows,
       excludedTMDBIds,
       excludedTitles,
       preferredOriginalLanguage,
